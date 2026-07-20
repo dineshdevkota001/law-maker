@@ -1,0 +1,19 @@
+{
+  "name": "law-maker",
+  "version": "1.0.0",
+  "description": "Law-Maker Web Application Monorepo",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter=./frontend dev",
+    "build": "pnpm --filter=./frontend build && pnpm --filter=./backend build",
+    "start": "pnpm --filter=./frontend start",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@next/font": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}
