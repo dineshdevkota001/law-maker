@@ -1,40 +1,25 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from pydantic import BaseModel
-import os
-# We'll add actual libraries here later (e.g., pypdf, langchain)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Law-Maker API")
+from database import init_db
+from endpoints import router
 
-# Basic model for response structure
-class StatusResponse(BaseModel):
-    status: str
-    message: str
 
-@app.get("/")
-def root():
-    return {"service": "Law-Maker Backend", "status": "Running"}
+app = FastAPI(title="Law Maker Backend", version="0.2.0")
 
-@app.post("/api/upload_pdf", response_model=StatusResponse)
-async def upload_pdf(file: UploadFile = File(...)):
-    """
-    Endpoint to handle PDF file uploads. This is the entry point for RAG data ingestion.
-    """
-    print(f"Received file: {file.filename} with content type: {file.content_type}")
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=["*"],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+)
 
-    try:
-        # 1. Save the file temporarily or process streams directly (Streaming recommended)
-        file_location = f"/tmp/uploads/{file.filename}"
-        with open(file_location, "wb+") as file_object:
-            file_object.write(await file.read())
 
-        # 2. Core RAG Logic Placeholder:
-        #    - Extract text from PDF (Requires pypdf)
-        #    - Chunk the text
-        #    - Generate embeddings and store in Vector DB
+@app.on_event("startup")
+def on_startup() -> None:
+	init_db()
 
-        return {"status": "success", "message": f"Successfully received and queued processing for {file.filename}."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
 
-# Note: You will need to run 'pip install fastapi uvicorn pydantic' 
-# inside the law-maker/backend environment first.
+app.include_router(router)
+

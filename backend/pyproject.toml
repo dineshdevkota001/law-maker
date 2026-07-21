@@ -1,0 +1,5 @@
+[project]
+name = "law-maker-backend"
+version = "0.2.0"
+description = "Multilingual legal RAG backend with PDF ingestion"
+requires-python = ">=3.11,<3.14"
