@@ -5,6 +5,7 @@ import {
   FileTextOutlined,
   DeleteOutlined,
   InboxOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import { Button, Tooltip, Progress, Typography } from "antd";
 import PDFUpload from "./PDFUpload";
@@ -21,7 +22,7 @@ interface DocumentSidebarProps {
   documents: Document[];
   selectedDocId: string | null;
   onSelectDoc: (id: string | null) => void;
-  onUpload: (file: File) => void;
+  onUpload: (files: File[]) => void;
   onRemoveDoc: (id: string) => void;
   isUploading: boolean;
 }
@@ -34,6 +35,7 @@ export default function DocumentSidebar({
   onRemoveDoc,
   isUploading,
 }: DocumentSidebarProps) {
+
   return (
     <aside className="flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
@@ -47,6 +49,15 @@ export default function DocumentSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">
+        {documents.length === 0 && isUploading && (
+          <div className="flex flex-col items-center gap-3 py-12 text-center text-blue-600 dark:text-blue-400">
+            <LoadingOutlined className="text-3xl" />
+            <Text type="secondary" className="text-xs">
+              Uploading & processing PDF...
+            </Text>
+          </div>
+        )}
+
         {documents.length === 0 && !isUploading && (
           <div className="flex flex-col items-center gap-3 py-12 text-center text-zinc-400">
             <InboxOutlined className="text-4xl" />
@@ -66,21 +77,19 @@ export default function DocumentSidebar({
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className={`group flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 transition-colors ${
-                selectedDocId === doc.id
-                  ? "bg-blue-50 dark:bg-blue-950/30"
-                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              }`}
+              className={`group flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 transition-all ${selectedDocId === doc.id
+                ? "border-l-2 border-blue-500 bg-blue-50 pl-2.5 dark:bg-blue-950/30"
+                : "border-l-2 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                }`}
               onClick={() => onSelectDoc(doc.id)}
             >
               <FileTextOutlined
-                className={`mt-0.5 text-lg ${
-                  doc.status === "ready"
-                    ? "text-green-600"
-                    : doc.status === "processing"
+                className={`mt-0.5 text-lg ${doc.status === "ready"
+                  ? "text-green-600"
+                  : doc.status === "processing"
                     ? "text-amber-500"
                     : "text-red-500"
-                }`}
+                  }`}
               />
               <div className="min-w-0 flex-1">
                 <Text
