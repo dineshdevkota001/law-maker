@@ -50,7 +50,7 @@ export default function DocumentSidebar({
               </Text>
               <br />
               <Text type="secondary" className="text-sm">
-                Manage uploads in Settings
+                Manage uploads in Documents
               </Text>
             </div>
           </div>
@@ -127,11 +127,11 @@ export default function DocumentSidebar({
 
       <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
         <Link
-          href="/settings"
+          href="/documents"
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
         >
           <SettingOutlined />
-          Manage Documents in Settings
+          Manage Documents
         </Link>
       </div>
     </aside>
