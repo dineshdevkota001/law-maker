@@ -1,7 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import type { Document } from "@/lib/types";
-import { FileTextOutlined, InboxOutlined } from "@ant-design/icons";
+import {
+  FileTextOutlined,
+  InboxOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
 import { Progress, Tag, Typography } from "antd";
 
 const { Text } = Typography;
@@ -24,7 +29,7 @@ export default function DocumentSidebar({
   onSelectDoc,
 }: DocumentSidebarProps) {
   return (
-    <aside className="flex h-full w-88 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+    <aside className="flex h-full w-[360px] flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-3 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
         <FileTextOutlined className="text-xl text-blue-600" />
         <Text strong className="text-base">
@@ -118,6 +123,16 @@ export default function DocumentSidebar({
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+        <Link
+          href="/settings"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+        >
+          <SettingOutlined />
+          Manage Documents in Settings
+        </Link>
       </div>
     </aside>
   );

@@ -99,9 +99,9 @@ function ChatBubble({
   }
 
   return (
-    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`flex gap-4 ${isUser ? "flex-row-reverse" : ""}`}>
       <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${
           isUser ? "bg-blue-600" : "bg-zinc-700 dark:bg-zinc-600"
         }`}
       >
@@ -109,7 +109,7 @@ function ChatBubble({
       </div>
 
       <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[82%] rounded-3xl px-5 py-4 text-base leading-relaxed ${
           isUser
             ? "bg-blue-600 text-white"
             : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
@@ -120,7 +120,7 @@ function ChatBubble({
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-0.5 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
               title="Copy answer without citations"
             >
               {copied ? <CheckOutlined /> : <CopyOutlined />}
@@ -137,13 +137,15 @@ function ChatBubble({
               remarkPlugins={[remarkGfm]}
               components={{
                 p: ({ children }) => (
-                  <p className="whitespace-pre-wrap">{children}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed">
+                    {children}
+                  </p>
                 ),
                 ul: ({ children }) => (
-                  <ul className="list-disc space-y-1 pl-5">{children}</ul>
+                  <ul className="list-disc space-y-1.5 pl-6">{children}</ul>
                 ),
                 ol: ({ children }) => (
-                  <ol className="list-decimal space-y-1 pl-5">{children}</ol>
+                  <ol className="list-decimal space-y-1.5 pl-6">{children}</ol>
                 ),
                 li: ({ children }) => <li>{children}</li>,
                 code: ({ children }) => (
@@ -274,20 +276,20 @@ export default function ChatInterface({
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 && !isLoading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <RobotOutlined className="text-5xl text-zinc-300 dark:text-zinc-600" />
+            <RobotOutlined className="text-6xl text-zinc-300 dark:text-zinc-600" />
             <div>
-              <Text className="text-base font-medium text-zinc-500 dark:text-zinc-400">
+              <Text className="text-xl font-semibold text-zinc-500 dark:text-zinc-400">
                 Legal Document Assistant
               </Text>
               <br />
-              <Text type="secondary" className="text-sm">
+              <Text type="secondary" className="text-base">
                 Upload PDFs and ask questions about your documents
               </Text>
             </div>
           </div>
         )}
 
-        <div className="mx-auto flex max-w-2xl flex-col gap-4">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
           {messages.map((msg) => (
             <ChatBubble
               key={msg.id}
@@ -315,20 +317,20 @@ export default function ChatInterface({
       </div>
 
       <div className="border-t border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-2xl gap-3">
+        <div className="mx-auto flex w-full max-w-4xl gap-3">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask a question about your documents..."
-            rows={1}
-            className="flex-1 resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-600"
+            rows={2}
+            className="flex-1 resize-none rounded-2xl border border-zinc-300 bg-white px-5 py-4 text-base outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-600"
           />
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
-            className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl bg-blue-600 px-6 py-4 text-base font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Send
           </button>
