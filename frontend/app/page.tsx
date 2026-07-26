@@ -23,12 +23,8 @@ export default function Home() {
     useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [viewerWidth, setViewerWidth] = useState(42);
-  const [defaultUserId] = useState(() =>
-    getStoredPreference(PREF_KEYS.userId, "dinesh")
-  );
-  const [defaultTopic] = useState(() =>
-    getStoredPreference(PREF_KEYS.defaultTopic, "general")
-  );
+  const [defaultUserId, setDefaultUserId] = useState("dinesh");
+  const [defaultTopic, setDefaultTopic] = useState("general");
   const isResizingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +34,13 @@ export default function Home() {
     (d) => d.level === "per_subject"
   ).length;
   const personalCount = documents.filter((d) => d.level === "personal").length;
+
+  useEffect(() => {
+    const userId = getStoredPreference(PREF_KEYS.userId, "dinesh");
+    const topic = getStoredPreference(PREF_KEYS.defaultTopic, "general");
+    setDefaultUserId(userId);
+    setDefaultTopic(topic);
+  }, []);
 
   useEffect(() => {
     getDocuments()
@@ -232,9 +235,9 @@ export default function Home() {
         onClose={() => setIsMobileSourceViewerOpen(false)}
         title="Source Viewer"
         placement="right"
-        width="100%"
+        size="100%"
         className="lg:hidden"
-        bodyStyle={{ padding: 0 }}
+        styles={{ body: { padding: 0 } }}
       >
         <div className="h-full min-h-[60vh]">
           <PDFViewer

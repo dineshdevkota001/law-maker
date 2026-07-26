@@ -14,20 +14,32 @@ import {
 const { Title, Text } = Typography;
 
 export default function SettingsPage() {
-  const [theme, setTheme] = useState<ThemeMode>(
-    () =>
-      (getStoredPreference(PREF_KEYS.theme, "light") as ThemeMode) || "light"
-  );
-  const [userId, setUserId] = useState(() =>
-    getStoredPreference(PREF_KEYS.userId, "dinesh")
-  );
-  const [defaultTopic, setDefaultTopic] = useState(() =>
-    getStoredPreference(PREF_KEYS.defaultTopic, "general")
-  );
+  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [userId, setUserId] = useState("dinesh");
+  const [defaultTopic, setDefaultTopic] = useState("general");
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Restore preferences from localStorage after hydration
+  useEffect(() => {
+    const storedTheme =
+      (getStoredPreference(PREF_KEYS.theme, "light") as ThemeMode) || "light";
+    const storedUserId = getStoredPreference(PREF_KEYS.userId, "dinesh");
+    const storedDefaultTopic = getStoredPreference(
+      PREF_KEYS.defaultTopic,
+      "general"
+    );
+
+    setTheme(storedTheme);
+    setUserId(storedUserId);
+    setDefaultTopic(storedDefaultTopic);
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
-    applyTheme(theme === "dark" ? "dark" : "light");
-  }, [theme]);
+    if (isHydrated) {
+      applyTheme(theme === "dark" ? "dark" : "light");
+    }
+  }, [theme, isHydrated]);
 
   function onThemeChange(next: ThemeMode) {
     setTheme(next);

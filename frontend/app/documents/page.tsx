@@ -91,24 +91,33 @@ function DocumentRow({
 
 export default function SettingsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [isLoadingDocs, setIsLoadingDocs] = useState(true);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<DocLevel>("global");
-  const [subject, setSubject] = useState(() =>
-    getStoredPreference(PREF_KEYS.defaultTopic, "general")
-  );
-  const [userId, setUserId] = useState(() =>
-    getStoredPreference(PREF_KEYS.userId, "dinesh")
-  );
+  const [subject, setSubject] = useState("general");
+  const [userId, setUserId] = useState("dinesh");
   const [error, setError] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const grouped = useMemo(() => groupDocumentsByLevel(documents), [documents]);
   const globalCount = grouped.global.length;
   const perSubjectCount = grouped.per_subject.length;
   const personalCount = grouped.personal.length;
+
+  // Restore preferences from localStorage after hydration
+  useEffect(() => {
+    const storedSubject = getStoredPreference(
+      PREF_KEYS.defaultTopic,
+      "general"
+    );
+    const storedUserId = getStoredPreference(PREF_KEYS.userId, "dinesh");
+    setSubject(storedSubject);
+    setUserId(storedUserId);
+    setIsHydrated(true);
+  }, []);
 
   const loadDocuments = useCallback(async () => {
     setIsLoadingDocs(true);
@@ -127,6 +136,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     let active = true;
+    setIsLoadingDocs(true);
     getDocuments()
       .then((docs) => {
         if (!active) {
@@ -246,7 +256,6 @@ export default function SettingsPage() {
             }
           }}
           footer={null}
-          destroyOnClose
         >
           <div className="space-y-4">
             <div>
