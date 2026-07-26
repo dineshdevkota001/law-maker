@@ -1,13 +1,8 @@
 "use client";
 
 import type { Document } from "@/lib/types";
-import {
-  FileTextOutlined,
-  DeleteOutlined,
-  InboxOutlined,
-} from "@ant-design/icons";
-import { Button, Tooltip, Progress, Typography } from "antd";
-import PDFUpload from "./PDFUpload";
+import { FileTextOutlined, InboxOutlined } from "@ant-design/icons";
+import { Progress, Tag, Typography } from "antd";
 
 const { Text } = Typography;
 
@@ -21,52 +16,46 @@ interface DocumentSidebarProps {
   documents: Document[];
   selectedDocId: string | null;
   onSelectDoc: (id: string | null) => void;
-  onUpload: (file: File) => void;
-  onRemoveDoc: (id: string) => void;
-  isUploading: boolean;
 }
 
 export default function DocumentSidebar({
   documents,
   selectedDocId,
   onSelectDoc,
-  onUpload,
-  onRemoveDoc,
-  isUploading,
 }: DocumentSidebarProps) {
   return (
-    <aside className="flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-        <FileTextOutlined className="text-base text-blue-600" />
-        <Text strong className="text-sm">
+    <aside className="flex h-full w-88 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-3 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+        <FileTextOutlined className="text-xl text-blue-600" />
+        <Text strong className="text-base">
           Documents
         </Text>
-        <span className="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+        <span className="ml-auto rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
           {documents.length}
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
-        {documents.length === 0 && !isUploading && (
-          <div className="flex flex-col items-center gap-3 py-12 text-center text-zinc-400">
+      <div className="flex-1 overflow-y-auto p-4">
+        {documents.length === 0 && (
+          <div className="flex flex-col items-center gap-4 py-14 text-center text-zinc-400">
             <InboxOutlined className="text-4xl" />
             <div>
-              <Text type="secondary" className="text-xs">
-                No documents uploaded yet
+              <Text type="secondary" className="text-sm">
+                No documents available yet
               </Text>
               <br />
-              <Text type="secondary" className="text-xs">
-                Upload a PDF to get started
+              <Text type="secondary" className="text-sm">
+                Manage uploads in Settings
               </Text>
             </div>
           </div>
         )}
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2.5">
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className={`group flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 transition-colors ${
+              className={`group flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3 transition-colors ${
                 selectedDocId === doc.id
                   ? "bg-blue-50 dark:bg-blue-950/30"
                   : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -74,7 +63,7 @@ export default function DocumentSidebar({
               onClick={() => onSelectDoc(doc.id)}
             >
               <FileTextOutlined
-                className={`mt-0.5 text-lg ${
+                className={`mt-0.5 text-xl ${
                   doc.status === "ready"
                     ? "text-green-600"
                     : doc.status === "processing"
@@ -84,13 +73,13 @@ export default function DocumentSidebar({
               />
               <div className="min-w-0 flex-1">
                 <Text
-                  className="block truncate text-sm font-medium"
+                  className="block truncate text-base font-semibold"
                   ellipsis={{ tooltip: doc.name }}
                 >
                   {doc.name}
                 </Text>
-                <div className="mt-0.5 flex items-center gap-2">
-                  <Text type="secondary" className="text-xs">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Text type="secondary" className="text-sm">
                     {formatSize(doc.size)}
                   </Text>
                   {doc.pageCount && (
@@ -98,10 +87,18 @@ export default function DocumentSidebar({
                       <span className="text-zinc-300 dark:text-zinc-600">
                         ·
                       </span>
-                      <Text type="secondary" className="text-xs">
+                      <Text type="secondary" className="text-sm">
                         {doc.pageCount} pages
                       </Text>
                     </>
+                  )}
+                  <Tag className="!mr-0 capitalize">
+                    {doc.level.replace("_", " ")}
+                  </Tag>
+                  {doc.level === "per_subject" && doc.subject && (
+                    <Tag className="!mr-0" color="processing">
+                      {doc.subject}
+                    </Tag>
                   )}
                 </div>
                 {doc.status === "processing" && (
@@ -118,26 +115,9 @@ export default function DocumentSidebar({
                   </Text>
                 )}
               </div>
-              <Tooltip title="Remove document">
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  className="!opacity-0 group-hover:!opacity-100"
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onRemoveDoc(doc.id);
-                  }}
-                />
-              </Tooltip>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-        <PDFUpload onUpload={onUpload} isUploading={isUploading} />
       </div>
     </aside>
   );

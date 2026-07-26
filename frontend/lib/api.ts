@@ -22,6 +22,12 @@ type ChatStreamHandlers = {
   onDelta: (delta: string) => void;
 };
 
+type UploadOptions = {
+  level?: "global" | "per_subject" | "personal";
+  subject?: string;
+  userId?: string;
+};
+
 function parseMaybeJson(payload: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(payload);
@@ -89,17 +95,43 @@ function applyStreamPayload(
   }
 }
 
-export async function uploadDocument(file: File): Promise<Document> {
+export async function uploadDocument(
+  file: File,
+  options: UploadOptions = {}
+): Promise<Document> {
   const formData = new FormData();
   formData.append("file", file);
+  if (options.level) {
+    formData.append("level", options.level);
+  }
+  if (options.subject) {
+    formData.append("subject", options.subject);
+  }
+
+  const headers: HeadersInit = {};
+  if (options.level === "personal" && options.userId) {
+    headers["x-user-id"] = options.userId;
+  }
 
   const res = await fetch(`${API_BASE}/api/upload_pdf`, {
     method: "POST",
     body: formData,
+    headers,
   });
 
   if (!res.ok) {
-    throw new Error(`Upload failed: ${res.statusText}`);
+    let message = `Upload failed: ${res.statusText}`;
+    try {
+      const payload = await res.json();
+      if (payload?.detail?.detail) {
+        message = payload.detail.detail;
+      } else if (payload?.detail) {
+        message = payload.detail;
+      }
+    } catch {
+      // Ignore JSON parsing errors and use default message.
+    }
+    throw new Error(message);
   }
 
   return res.json();
@@ -174,4 +206,34 @@ export async function getDocuments(): Promise<Document[]> {
   }
 
   return res.json();
+}
+
+export async function deleteDocument(
+  documentId: string,
+  userId?: string
+): Promise<void> {
+  const headers: HeadersInit = {};
+  if (userId) {
+    headers["x-user-id"] = userId;
+  }
+
+  const res = await fetch(`${API_BASE}/api/documents/${documentId}`, {
+    method: "DELETE",
+    headers,
+  });
+
+  if (!res.ok) {
+    let message = `Delete failed: ${res.statusText}`;
+    try {
+      const payload = await res.json();
+      if (payload?.detail?.detail) {
+        message = payload.detail.detail;
+      } else if (payload?.detail) {
+        message = payload.detail;
+      }
+    } catch {
+      // Ignore JSON parsing errors and use default message.
+    }
+    throw new Error(message);
+  }
 }

@@ -10,6 +10,7 @@ import {
   ZoomOutOutlined,
   LeftOutlined,
   RightOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import { Button, Typography, Empty } from "antd";
 
@@ -18,11 +19,13 @@ const { Text } = Typography;
 interface PDFViewerProps {
   document: Document | null;
   requestedPage?: number;
+  onClose?: () => void;
 }
 
 export default function PDFViewer({
   document: doc,
   requestedPage,
+  onClose,
 }: PDFViewerProps) {
   const pageCount = doc?.pageCount || 1;
   const initialPage = Math.max(1, Math.min(pageCount, requestedPage || 1));
@@ -57,12 +60,12 @@ export default function PDFViewer({
 
   return (
     <div className="flex h-full flex-col border-l border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-2">
           <FileTextOutlined className="text-blue-600" />
           <Text
             strong
-            className="max-w-[200px] truncate text-sm"
+            className="max-w-[220px] truncate text-base"
             ellipsis={{ tooltip: doc.name }}
           >
             {doc.name}
@@ -71,16 +74,16 @@ export default function PDFViewer({
 
         <div className="flex items-center gap-2">
           <Button
-            size="small"
+            size="middle"
             icon={<LeftOutlined />}
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           />
-          <Text className="min-w-[60px] text-center text-xs">
+          <Text className="min-w-[74px] text-center text-sm">
             {currentPage} / {pageCount}
           </Text>
           <Button
-            size="small"
+            size="middle"
             icon={<RightOutlined />}
             disabled={currentPage >= pageCount}
             onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
@@ -89,18 +92,30 @@ export default function PDFViewer({
           <span className="mx-1 h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
 
           <Button
-            size="small"
+            size="middle"
             icon={<ZoomOutOutlined />}
             disabled={zoom <= 50}
             onClick={() => setZoom((z) => Math.max(50, z - 10))}
           />
-          <Text className="min-w-[40px] text-center text-xs">{zoom}%</Text>
+          <Text className="min-w-[48px] text-center text-sm">{zoom}%</Text>
           <Button
-            size="small"
+            size="middle"
             icon={<ZoomInOutlined />}
             disabled={zoom >= 200}
             onClick={() => setZoom((z) => Math.min(200, z + 10))}
           />
+
+          {onClose && (
+            <>
+              <span className="mx-1 h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+              <Button
+                size="middle"
+                icon={<CloseOutlined />}
+                onClick={onClose}
+                title="Close source viewer"
+              />
+            </>
+          )}
         </div>
       </div>
 
