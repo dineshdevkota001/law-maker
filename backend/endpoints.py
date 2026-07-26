@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.orm import Session
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from config import get_settings
 from database import get_db
 from models import Document
-from rag import generate_answer, ingest_pdf_document, search_chunks
+from rag import generate_answer, generate_answer_stream, ingest_pdf_document, search_chunks
 
 
 router = APIRouter(prefix="/api")
@@ -266,6 +267,7 @@ async def chat(
     level: str | None = Query(None),
     subject: str | None = Query(None),
     document_id: str | None = Query(None, alias="documentId"),
+    stream: bool = Query(True),
     user_id: str | None = Header(None, alias="x-user-id"),
     db: Session = Depends(get_db),
 ):
@@ -291,25 +293,52 @@ async def chat(
         document_id=document_id,
         top_k=settings.default_top_k,
     )
-    answer = generate_answer(query, sources)
-    return ChatResponse(
-        answer=answer,
-        sources=[
-            SourceChunkResponse(
-                chunkId=item.chunk_id,
-                documentId=item.document_id,
-                documentName=item.document_name,
-                page=item.page,
-                pageStart=item.page_start,
-                pageEnd=item.page_end,
-                clauseId=item.clause_id,
-                clauseHeading=item.clause_heading,
-                text=item.text,
-                score=round(item.score, 4),
-                sourceUrl=f"/api/documents/{item.document_id}/file?page={item.page}",
-            )
-            for item in sources
-        ],
+    source_models = [
+        SourceChunkResponse(
+            chunkId=item.chunk_id,
+            documentId=item.document_id,
+            documentName=item.document_name,
+            page=item.page,
+            pageStart=item.page_start,
+            pageEnd=item.page_end,
+            clauseId=item.clause_id,
+            clauseHeading=item.clause_heading,
+            text=item.text,
+            score=round(item.score, 4),
+            sourceUrl=f"/api/documents/{item.document_id}/file?page={item.page}",
+        )
+        for item in sources
+    ]
+
+    if not stream:
+        answer = generate_answer(query, sources)
+        return ChatResponse(answer=answer, sources=source_models)
+
+    def event_stream():
+        chunks: list[str] = []
+        for delta in generate_answer_stream(query, sources):
+            chunks.append(delta)
+            yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
+
+        answer = "".join(chunks).strip()
+        if not answer:
+            answer = generate_answer(query, sources)
+
+        final_payload = {
+            "answer": answer,
+            "sources": [item.model_dump() for item in source_models],
+        }
+        yield f"data: {json.dumps(final_payload, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

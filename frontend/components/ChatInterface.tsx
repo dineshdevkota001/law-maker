@@ -1,31 +1,35 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { ChatMessage as ChatMessageType } from "@/lib/types";
+import type { ChatMessage as ChatMessageType, SourceChunk } from "@/lib/types";
+import { resolveApiUrl } from "@/lib/api";
 import {
   UserOutlined,
   RobotOutlined,
   PaperClipOutlined,
   LoadingOutlined,
+  LinkOutlined,
 } from "@ant-design/icons";
 import { Typography } from "antd";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const { Text } = Typography;
 
-function ChatBubble({ message }: { message: ChatMessageType }) {
+function ChatBubble({
+  message,
+  onSourceClick,
+}: {
+  message: ChatMessageType;
+  onSourceClick?: (source: SourceChunk) => void;
+}) {
   const isUser = message.role === "user";
 
   return (
-    <div
-      className={`flex gap-3 ${
-        isUser ? "flex-row-reverse" : ""
-      }`}
-    >
+    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
-          isUser
-            ? "bg-blue-600"
-            : "bg-zinc-700 dark:bg-zinc-600"
+          isUser ? "bg-blue-600" : "bg-zinc-700 dark:bg-zinc-600"
         }`}
       >
         {isUser ? <UserOutlined /> : <RobotOutlined />}
@@ -38,21 +42,87 @@ function ChatBubble({ message }: { message: ChatMessageType }) {
             : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
         }`}
       >
-        <div className="whitespace-pre-wrap">{message.content}</div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap">{message.content}</div>
+        ) : (
+          <div className="space-y-2">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => (
+                  <p className="whitespace-pre-wrap">{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="list-disc space-y-1 pl-5">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="list-decimal space-y-1 pl-5">{children}</ol>
+                ),
+                li: ({ children }) => <li>{children}</li>,
+                code: ({ children }) => (
+                  <code className="rounded bg-zinc-200/80 px-1 py-0.5 text-xs dark:bg-zinc-700/90">
+                    {children}
+                  </code>
+                ),
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+            {message.isStreaming && !message.content && (
+              <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
+                <LoadingOutlined />
+                <span className="text-xs">Streaming response...</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {message.sources && message.sources.length > 0 && (
           <div className="mt-3 border-t border-zinc-200/20 pt-2 dark:border-zinc-600/30">
             <Text
-              className={`text-xs ${
+              className={`mb-2 block text-xs ${
                 isUser ? "text-blue-100" : "text-zinc-500 dark:text-zinc-400"
               }`}
             >
               <PaperClipOutlined className="mr-1" />
-              Sources:{" "}
-              {message.sources
-                .map((s) => `${s.documentName} (p.${s.page})`)
-                .join(", ")}
+              Sources
             </Text>
+            <div className="flex flex-col gap-1.5">
+              {message.sources.map((source) => (
+                <div
+                  key={source.chunkId}
+                  className="flex items-center justify-between gap-2 rounded-md bg-zinc-200/40 px-2 py-1.5 text-xs dark:bg-zinc-700/40"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSourceClick?.(source)}
+                    className="truncate text-left underline"
+                    title={`Open ${source.documentName} page ${source.page}`}
+                  >
+                    {`${source.documentName} (p.${source.page})`}
+                  </button>
+                  <a
+                    href={resolveApiUrl(source.sourceUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0"
+                    title="Open source PDF"
+                  >
+                    <LinkOutlined />
+                  </a>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -64,12 +134,14 @@ interface ChatInterfaceProps {
   messages: ChatMessageType[];
   isLoading: boolean;
   onSend: (message: string) => void;
+  onSourceClick?: (source: SourceChunk) => void;
 }
 
 export default function ChatInterface({
   messages,
   isLoading,
   onSend,
+  onSourceClick,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -113,10 +185,14 @@ export default function ChatInterface({
 
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
           {messages.map((msg) => (
-            <ChatBubble key={msg.id} message={msg} />
+            <ChatBubble
+              key={msg.id}
+              message={msg}
+              onSourceClick={onSourceClick}
+            />
           ))}
 
-          {isLoading && (
+          {isLoading && !messages.some((m) => m.isStreaming) && (
             <div className="flex gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xs text-white dark:bg-zinc-600">
                 <RobotOutlined />

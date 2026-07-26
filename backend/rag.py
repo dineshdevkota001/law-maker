@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import uuid
 from dataclasses import dataclass
+from collections.abc import Iterator
 
 from deep_translator import GoogleTranslator
 import google.generativeai as genai
@@ -470,16 +471,17 @@ def generate_answer(query: str, sources: list[RetrievedChunk]) -> str:
         )
     context = "\n\n".join(context_parts)
 
+    prompt = (
+        "You are a legal assistant for Nepal law documents. "
+        "Answer in the same language as the user query (Nepali or English). "
+        "Use only the provided context. If uncertain, say what is missing.\n\n"
+        f"User query:\n{query}\n\n"
+        f"Context:\n{context}\n\n"
+        "Provide a concise answer with a short evidence summary."
+    )
+
     if _gemini_client():
         model = genai.GenerativeModel(settings.gemini_model)
-        prompt = (
-            "You are a legal assistant for Nepal law documents. "
-            "Answer in the same language as the user query (Nepali or English). "
-            "Use only the provided context. If uncertain, say what is missing.\n\n"
-            f"User query:\n{query}\n\n"
-            f"Context:\n{context}\n\n"
-            "Provide a concise answer with a short evidence summary."
-        )
         try:
             response = model.generate_content(prompt)
             if response and response.text:
@@ -488,6 +490,71 @@ def generate_answer(query: str, sources: list[RetrievedChunk]) -> str:
             pass
 
     return sources[0].text
+
+
+def _chunk_text_for_stream(text: str, *, max_chars: int = 80) -> Iterator[str]:
+    words = text.split()
+    if not words:
+        return
+    bucket = ""
+    for word in words:
+        candidate = word if not bucket else f"{bucket} {word}"
+        if len(candidate) <= max_chars:
+            bucket = candidate
+        else:
+            yield bucket + " "
+            bucket = word
+    if bucket:
+        yield bucket
+
+
+def generate_answer_stream(query: str, sources: list[RetrievedChunk]) -> Iterator[str]:
+    if not sources:
+        yield (
+            "I could not find relevant legal context in the indexed documents. "
+            "Please upload more relevant documents or refine your query."
+        )
+        return
+
+    context_parts = []
+    for idx, source in enumerate(sources, start=1):
+        heading = f" ({source.clause_heading})" if source.clause_heading else ""
+        page_display = (
+            str(source.page_start)
+            if source.page_start == source.page_end
+            else f"{source.page_start}-{source.page_end}"
+        )
+        context_parts.append(
+            f"[{idx}] Document: {source.document_name}{heading}, Page: {page_display}\n{source.text}"
+        )
+    context = "\n\n".join(context_parts)
+
+    prompt = (
+        "You are a legal assistant for Nepal law documents. "
+        "Answer in the same language as the user query (Nepali or English). "
+        "Use only the provided context. If uncertain, say what is missing.\n\n"
+        f"User query:\n{query}\n\n"
+        f"Context:\n{context}\n\n"
+        "Provide a concise answer with a short evidence summary."
+    )
+
+    if _gemini_client():
+        model = genai.GenerativeModel(settings.gemini_model)
+        try:
+            response = model.generate_content(prompt, stream=True)
+            emitted = False
+            for chunk in response:
+                text = getattr(chunk, "text", None)
+                if text:
+                    emitted = True
+                    yield text
+            if emitted:
+                return
+        except Exception:
+            pass
+
+    fallback = generate_answer(query, sources)
+    yield from _chunk_text_for_stream(fallback)
 
 
 

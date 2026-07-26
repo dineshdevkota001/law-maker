@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 
 **/.venv
+**/__pycache__
+**/data/uploads
+**/.DS_Store
