@@ -7,6 +7,8 @@ import {
   RobotOutlined,
   PaperClipOutlined,
   LoadingOutlined,
+  CopyOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
 import { Tag, Typography } from "antd";
 import ReactMarkdown from "react-markdown";
@@ -55,6 +57,14 @@ function hasInlineCitations(
   return /\[(\d+)\]/.test(content);
 }
 
+function cleanMessageForCopy(content: string): string {
+  return content
+    .replace(/\[(\d+)\]\(#source-\d+\)/g, "")
+    .replace(/\[(\d+)\]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function ChatBubble({
   message,
   onSourceClick,
@@ -63,6 +73,7 @@ function ChatBubble({
   onSourceClick?: (source: SourceChunk) => void;
 }) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
   const markdownWithCitations = toInlineCitationMarkdown(
     message.content,
     message.sources
@@ -71,6 +82,21 @@ function ChatBubble({
     message.content,
     message.sources
   );
+
+  async function handleCopy() {
+    const cleaned = cleanMessageForCopy(message.content);
+    if (!cleaned) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(cleaned);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // Ignore clipboard permission/runtime failures silently.
+    }
+  }
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -89,6 +115,20 @@ function ChatBubble({
             : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
         }`}
       >
+        {!isUser && !!message.content && (
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-0.5 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              title="Copy answer without citations"
+            >
+              {copied ? <CheckOutlined /> : <CopyOutlined />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        )}
+
         {isUser ? (
           <div className="whitespace-pre-wrap">{message.content}</div>
         ) : (
