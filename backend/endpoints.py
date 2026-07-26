@@ -229,6 +229,7 @@ async def stream_document_file(
         path=str(file_path),
         filename=doc.name,
         media_type=doc.mime_type,
+        content_disposition_type="inline",
     )
 
 

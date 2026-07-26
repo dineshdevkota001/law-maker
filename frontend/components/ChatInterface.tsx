@@ -2,13 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage as ChatMessageType, SourceChunk } from "@/lib/types";
-import { resolveApiUrl } from "@/lib/api";
 import {
   UserOutlined,
   RobotOutlined,
   PaperClipOutlined,
   LoadingOutlined,
-  LinkOutlined,
 } from "@ant-design/icons";
 import { Typography } from "antd";
 import ReactMarkdown from "react-markdown";
@@ -106,20 +104,11 @@ function ChatBubble({
                   <button
                     type="button"
                     onClick={() => onSourceClick?.(source)}
-                    className="truncate text-left underline"
+                    className="w-full truncate text-left underline"
                     title={`Open ${source.documentName} page ${source.page}`}
                   >
                     {`${source.documentName} (p.${source.page})`}
                   </button>
-                  <a
-                    href={resolveApiUrl(source.sourceUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0"
-                    title="Open source PDF"
-                  >
-                    <LinkOutlined />
-                  </a>
                 </div>
               ))}
             </div>
