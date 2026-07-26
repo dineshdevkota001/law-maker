@@ -14,6 +14,33 @@ import remarkGfm from "remark-gfm";
 
 const { Text } = Typography;
 
+function toInlineCitationMarkdown(
+  content: string,
+  sources: SourceChunk[] | undefined
+): string {
+  if (!sources || sources.length === 0) {
+    return content;
+  }
+
+  return content.replace(/\[(\d+)\]/g, (full, rawIndex) => {
+    const index = Number(rawIndex) - 1;
+    if (!Number.isInteger(index) || index < 0 || index >= sources.length) {
+      return full;
+    }
+    return `[${rawIndex}](source://${index})`;
+  });
+}
+
+function hasInlineCitations(
+  content: string,
+  sources: SourceChunk[] | undefined
+): boolean {
+  if (!sources || sources.length === 0) {
+    return false;
+  }
+  return /\[(\d+)\]/.test(content);
+}
+
 function ChatBubble({
   message,
   onSourceClick,
@@ -22,6 +49,14 @@ function ChatBubble({
   onSourceClick?: (source: SourceChunk) => void;
 }) {
   const isUser = message.role === "user";
+  const markdownWithCitations = toInlineCitationMarkdown(
+    message.content,
+    message.sources
+  );
+  const showBottomSources = !hasInlineCitations(
+    message.content,
+    message.sources
+  );
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -62,19 +97,38 @@ function ChatBubble({
                     {children}
                   </code>
                 ),
-                a: ({ href, children }) => (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline"
-                  >
-                    {children}
-                  </a>
-                ),
+                a: ({ href, children }) =>
+                  href?.startsWith("source://") ? (
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={() => {
+                        const index = Number(href.replace("source://", ""));
+                        if (
+                          Number.isInteger(index) &&
+                          index >= 0 &&
+                          message.sources &&
+                          index < message.sources.length
+                        ) {
+                          onSourceClick?.(message.sources[index]);
+                        }
+                      }}
+                    >
+                      {children}
+                    </button>
+                  ) : (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      {children}
+                    </a>
+                  ),
               }}
             >
-              {message.content}
+              {markdownWithCitations}
             </ReactMarkdown>
             {message.isStreaming && !message.content && (
               <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
@@ -85,7 +139,7 @@ function ChatBubble({
           </div>
         )}
 
-        {message.sources && message.sources.length > 0 && (
+        {showBottomSources && message.sources && message.sources.length > 0 && (
           <div className="mt-3 border-t border-zinc-200/20 pt-2 dark:border-zinc-600/30">
             <Text
               className={`mb-2 block text-xs ${
