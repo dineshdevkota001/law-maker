@@ -8,11 +8,25 @@ import {
   PaperClipOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
-import { Typography } from "antd";
+import { Tag, Typography } from "antd";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const { Text } = Typography;
+
+function getSourceIndexFromHref(href: string | undefined): number | null {
+  if (!href) {
+    return null;
+  }
+
+  const match = href.match(/#source-(\d+)/i) || href.match(/source:\/\/(\d+)/i);
+  if (!match) {
+    return null;
+  }
+
+  const index = Number(match[1]);
+  return Number.isInteger(index) && index >= 0 ? index : null;
+}
 
 function toInlineCitationMarkdown(
   content: string,
@@ -27,7 +41,7 @@ function toInlineCitationMarkdown(
     if (!Number.isInteger(index) || index < 0 || index >= sources.length) {
       return full;
     }
-    return `[${rawIndex}](source://${index})`;
+    return `[${rawIndex}](#source-${index})`;
   });
 }
 
@@ -97,26 +111,32 @@ function ChatBubble({
                     {children}
                   </code>
                 ),
-                a: ({ href, children }) =>
-                  href?.startsWith("source://") ? (
-                    <button
-                      type="button"
-                      className="underline"
-                      onClick={() => {
-                        const index = Number(href.replace("source://", ""));
-                        if (
-                          Number.isInteger(index) &&
-                          index >= 0 &&
-                          message.sources &&
-                          index < message.sources.length
-                        ) {
-                          onSourceClick?.(message.sources[index]);
-                        }
-                      }}
-                    >
-                      {children}
-                    </button>
-                  ) : (
+                a: ({ href, children }) => {
+                  const index = getSourceIndexFromHref(href);
+                  if (index !== null) {
+                    const source =
+                      message.sources && index < message.sources.length
+                        ? message.sources[index]
+                        : undefined;
+
+                    if (!source) {
+                      return null;
+                    }
+
+                    return (
+                      <sup className="mx-0.5 align-super">
+                        <Tag
+                          className="cursor-pointer select-none !rounded-full !border-zinc-300 !bg-zinc-200/90 !px-1.5 !py-0 !text-[10px] !font-medium !leading-4 !text-zinc-700 hover:!bg-zinc-300 dark:!border-zinc-600 dark:!bg-zinc-700/90 dark:!text-zinc-100 dark:hover:!bg-zinc-600"
+                          title={`Source ${index + 1}, page ${source.page}`}
+                          onClick={() => onSourceClick?.(source)}
+                        >
+                          {`${index + 1}·p${source.page}`}
+                        </Tag>
+                      </sup>
+                    );
+                  }
+
+                  return (
                     <a
                       href={href}
                       target="_blank"
@@ -125,7 +145,8 @@ function ChatBubble({
                     >
                       {children}
                     </a>
-                  ),
+                  );
+                },
               }}
             >
               {markdownWithCitations}
