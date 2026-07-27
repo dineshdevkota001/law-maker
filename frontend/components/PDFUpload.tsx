@@ -133,9 +133,9 @@ export default function PDFUpload({
       <label
         htmlFor={UPLOAD_INPUT_ID}
         className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-4 transition-colors ${isDragging
-              ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
-              : "border-zinc-300 hover:border-blue-400 hover:bg-zinc-100/50 dark:border-zinc-700 dark:hover:border-blue-600 dark:hover:bg-zinc-800/50"
-            }`}
+          ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
+          : "border-zinc-300 hover:border-blue-400 hover:bg-zinc-100/50 dark:border-zinc-700 dark:hover:border-blue-600 dark:hover:bg-zinc-800/50"
+          }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -145,7 +145,7 @@ export default function PDFUpload({
         ) : (
           <UploadOutlined className="text-lg text-zinc-400" />
         )}
-        <Text type="secondary" className="pointer-events-none text-center text-xs">
+        <Text type="secondary" className="pointer-events-none text-center text-xs dark:!text-zinc-400">
           {isDragging ? "Drop PDFs here" : "Click or drag PDFs to upload"}
         </Text>
       </label>

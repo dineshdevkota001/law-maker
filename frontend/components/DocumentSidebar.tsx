@@ -6,11 +6,18 @@ import {
   DeleteOutlined,
   InboxOutlined,
   LoadingOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import { Button, Tooltip, Progress, Typography } from "antd";
 import PDFUpload from "./PDFUpload";
 
 const { Text } = Typography;
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  ne: "Nepali",
+  en: "English",
+  hi: "Hindi",
+};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -24,7 +31,10 @@ interface DocumentSidebarProps {
   onSelectDoc: (id: string | null) => void;
   onUpload: (files: File[]) => void;
   onRemoveDoc: (id: string) => void;
+  onRefreshDoc?: (id: string) => void;
   isUploading: boolean;
+  isLoadingDocs?: boolean;
+  docsError?: string | null;
   uploadLevel?: string;
   uploadSubject?: string;
   onUploadLevelChange?: (level: string) => void;
@@ -37,7 +47,10 @@ export default function DocumentSidebar({
   onSelectDoc,
   onUpload,
   onRemoveDoc,
+  onRefreshDoc,
   isUploading,
+  isLoadingDocs,
+  docsError,
   uploadLevel = "global",
   uploadSubject = "",
   onUploadLevelChange,
@@ -45,7 +58,7 @@ export default function DocumentSidebar({
 }: DocumentSidebarProps) {
 
   return (
-    <aside className="flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+    <aside className="flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:[&_.ant-typography]:!text-zinc-100 dark:[&_.ant-typography-secondary]:!text-zinc-400">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <FileTextOutlined className="text-base text-blue-600" />
         <Text strong className="text-sm">
@@ -57,7 +70,24 @@ export default function DocumentSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">
-        {documents.length === 0 && isUploading && (
+        {docsError && (
+          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-800 dark:bg-red-950/30">
+            <Text type="danger" className="text-xs">
+              {docsError}
+            </Text>
+          </div>
+        )}
+
+        {documents.length == 0 && isLoadingDocs && !docsError && (
+          <div className="flex flex-col items-center gap-3 py-12 text-center text-zinc-400">
+            <LoadingOutlined className="text-3xl" />
+            <Text type="secondary" className="text-xs">
+              Loading documents...
+            </Text>
+          </div>
+        )}
+
+        {documents.length === 0 && !isLoadingDocs && isUploading && (
           <div className="flex flex-col items-center gap-3 py-12 text-center text-blue-600 dark:text-blue-400">
             <LoadingOutlined className="text-3xl" />
             <Text type="secondary" className="text-xs">
@@ -66,7 +96,7 @@ export default function DocumentSidebar({
           </div>
         )}
 
-        {documents.length === 0 && !isUploading && (
+        {documents.length === 0 && !isLoadingDocs && !isUploading && (
           <div className="flex flex-col items-center gap-3 py-12 text-center text-zinc-400">
             <InboxOutlined className="text-4xl" />
             <div>
@@ -106,18 +136,24 @@ export default function DocumentSidebar({
                 >
                   {doc.name}
                 </Text>
-                <div className="mt-0.5 flex items-center gap-2">
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <Text type="secondary" className="text-xs">
                     {formatSize(doc.size)}
                   </Text>
                   {doc.pageCount && (
                     <>
-                      <span className="text-zinc-300 dark:text-zinc-600">
-                        ·
-                      </span>
+                      <span className="text-zinc-300 dark:text-zinc-600">·</span>
                       <Text type="secondary" className="text-xs">
-                        {doc.pageCount} pages
+                        {doc.pageCount}p
                       </Text>
+                    </>
+                  )}
+                  {doc.language && (
+                    <>
+                      <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                      <span className="rounded bg-zinc-200/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:bg-zinc-700/60 dark:text-zinc-400">
+                        {LANGUAGE_LABELS[doc.language] ?? doc.language}
+                      </span>
                     </>
                   )}
                 </div>
@@ -135,19 +171,33 @@ export default function DocumentSidebar({
                   </Text>
                 )}
               </div>
-              <Tooltip title="Remove document">
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  className="!opacity-0 group-hover:!opacity-100"
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onRemoveDoc(doc.id);
-                  }}
-                />
-              </Tooltip>
+              <div className="flex items-center gap-0.5">
+                <Tooltip title="Refresh document metadata">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<ReloadOutlined />}
+                    className="!opacity-0 group-hover:!opacity-100 text-zinc-400"
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      onRefreshDoc?.(doc.id);
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="Remove document">
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    className="!opacity-0 group-hover:!opacity-100"
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      onRemoveDoc(doc.id);
+                    }}
+                  />
+                </Tooltip>
+              </div>
             </div>
           ))}
         </div>
@@ -159,8 +209,8 @@ export default function DocumentSidebar({
           isUploading={isUploading}
           level={uploadLevel}
           subject={uploadSubject}
-          onLevelChange={onUploadLevelChange ?? (() => {})}
-          onSubjectChange={onUploadSubjectChange ?? (() => {})}
+          onLevelChange={onUploadLevelChange ?? (() => { })}
+          onSubjectChange={onUploadSubjectChange ?? (() => { })}
         />
       </div>
     </aside>

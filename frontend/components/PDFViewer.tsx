@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Document } from "@/lib/types";
 import { FileTextOutlined, LoadingOutlined, ReloadOutlined, BookOutlined } from "@ant-design/icons";
 import { Button, Typography, Empty, Tag } from "antd";
@@ -13,19 +13,14 @@ interface PDFViewerProps {
 }
 
 export default function PDFViewer({ document: doc, activePage }: PDFViewerProps) {
-  const [pdfKey, setPdfKey] = useState(0);
-
-  // Force re-render iframe/object when activePage changes so browser jumps to target page
-  useEffect(() => {
-    setPdfKey((k) => k + 1);
-  }, [activePage, doc?.id]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   if (!doc) {
     return (
       <div className="flex h-full items-center justify-center border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
         <Empty
           description={
-            <Text type="secondary" className="text-sm">
+            <Text type="secondary" className="text-sm dark:!text-zinc-400">
               Select a document from the sidebar to view
             </Text>
           }
@@ -40,7 +35,7 @@ export default function PDFViewer({ document: doc, activePage }: PDFViewerProps)
         <div className="flex h-full flex-col items-center justify-center gap-3 border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
           <LoadingOutlined className="text-3xl text-blue-600" />
           <Text className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Processing document...</Text>
-          <Text type="secondary" className="text-xs">Extracting text & generating vector embeddings</Text>
+          <Text type="secondary" className="text-xs dark:!text-zinc-400">Extracting text & generating vector embeddings</Text>
         </div>
       );
     }
@@ -58,7 +53,7 @@ export default function PDFViewer({ document: doc, activePage }: PDFViewerProps)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
         <FileTextOutlined className="text-3xl text-zinc-400" />
-        <Text className="text-sm text-zinc-500">No preview available</Text>
+        <Text className="text-sm text-zinc-500 dark:!text-zinc-400">No preview available</Text>
       </div>
     );
   }
@@ -73,7 +68,7 @@ export default function PDFViewer({ document: doc, activePage }: PDFViewerProps)
       <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-2.5 min-w-0">
           <FileTextOutlined className="text-blue-600 text-base shrink-0" />
-          <Text strong className="truncate text-sm" ellipsis={{ tooltip: doc.name }}>
+          <Text strong className="truncate text-sm dark:!text-zinc-100" ellipsis={{ tooltip: doc.name }}>
             {doc.name}
           </Text>
           {activePage && activePage > 0 && (
@@ -87,7 +82,7 @@ export default function PDFViewer({ document: doc, activePage }: PDFViewerProps)
           <Button
             size="small"
             icon={<ReloadOutlined />}
-            onClick={() => setPdfKey((k) => k + 1)}
+            onClick={() => setRefreshKey((k) => k + 1)}
           >
             Refresh
           </Button>
@@ -96,7 +91,7 @@ export default function PDFViewer({ document: doc, activePage }: PDFViewerProps)
 
       <div className="flex flex-1 items-start justify-center overflow-hidden bg-zinc-800">
         <object
-          key={`${doc.id}-${activePage || 1}-${pdfKey}`}
+          key={`${doc.id}-${activePage || 1}-${refreshKey}`}
           data={viewerUrl}
           type="application/pdf"
           className="h-full w-full"

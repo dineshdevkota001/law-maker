@@ -169,7 +169,7 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-zinc-900">
+    <div className="flex h-full flex-col bg-white dark:bg-zinc-900 dark:[&_.ant-typography]:!text-zinc-100 dark:[&_.ant-typography-secondary]:!text-zinc-400">
       {/* Header bar */}
       <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
         <div className="flex items-center gap-2">
@@ -269,7 +269,7 @@ export default function ChatInterface({
                   onClick={() => handleSubmit(prompt)}
                   className="w-full text-left rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs text-zinc-700 transition-all hover:border-blue-400 hover:bg-blue-50/40 dark:border-zinc-800 dark:bg-zinc-800/40 dark:text-zinc-300 dark:hover:border-blue-600"
                 >
-                  "{prompt}"
+                  &ldquo;{prompt}&rdquo;
                 </button>
               ))}
             </div>
