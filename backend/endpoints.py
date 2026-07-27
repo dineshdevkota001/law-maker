@@ -14,6 +14,7 @@ from config import get_settings
 from database import get_db
 from models import Document
 from rag import generate_answer, generate_answer_stream, ingest_pdf_document, search_chunks
+import google.generativeai as genai
 
 
 router = APIRouter(prefix="/api")
@@ -378,4 +379,32 @@ async def search(
         )
         for item in sources
     ]
+
+
+@router.get("/debug/gemini")
+async def debug_gemini():
+    """Test Gemini API connectivity and configuration."""
+    if not settings.gemini_api_key:
+        return {"status": "error", "message": "GEMINI_API_KEY not configured"}
+    
+    try:
+        genai.configure(api_key=settings.gemini_api_key)
+        model = genai.GenerativeModel(settings.gemini_model)
+        
+        # Test with a simple prompt
+        test_prompt = "Respond with: 'Gemini API is working correctly.'"
+        response = model.generate_content(test_prompt)
+        
+        return {
+            "status": "success",
+            "message": "Gemini API is working",
+            "model": settings.gemini_model,
+            "response": response.text if response else "Empty response",
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Gemini API error: {type(e).__name__}: {str(e)}",
+            "model": settings.gemini_model,
+        }
 

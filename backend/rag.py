@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 import re
 import uuid
@@ -21,6 +22,7 @@ from models import Chunk, Document
 
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 _embedder: SentenceTransformer | None = None
 _RRF_K = 60
 
@@ -54,6 +56,7 @@ def _detect_lang(text: str) -> str:
 
 def _gemini_client() -> bool:
     if not settings.gemini_api_key:
+        logger.warning("GEMINI_API_KEY not configured")
         return False
     genai.configure(api_key=settings.gemini_api_key)
     return True
@@ -460,14 +463,15 @@ def generate_answer(query: str, sources: list[RetrievedChunk]) -> str:
 
     context_parts = []
     for idx, source in enumerate(sources, start=1):
-        heading = f" ({source.clause_heading})" if source.clause_heading else ""
         page_display = (
             str(source.page_start)
             if source.page_start == source.page_end
             else f"{source.page_start}-{source.page_end}"
         )
+        # Include heading prominently if available
+        heading_line = f"Section: {source.clause_heading}\n" if source.clause_heading else ""
         context_parts.append(
-            f"[{idx}] Document: {source.document_name}{heading}, Page: {page_display}\n{source.text}"
+            f"[{idx}] {source.document_name} (Page {page_display})\n{heading_line}{source.text}"
         )
     context = "\n\n".join(context_parts)
 
@@ -486,12 +490,17 @@ def generate_answer(query: str, sources: list[RetrievedChunk]) -> str:
     if _gemini_client():
         model = genai.GenerativeModel(settings.gemini_model)
         try:
+            logger.info(f"Calling Gemini model: {settings.gemini_model}")
             response = model.generate_content(prompt)
             if response and response.text:
+                logger.info("Gemini response successful")
                 return response.text.strip()
-        except Exception:
-            pass
+            else:
+                logger.warning("Gemini returned empty response")
+        except Exception as e:
+            logger.error(f"Gemini API error: {type(e).__name__}: {str(e)}")
 
+    logger.info("Falling back to first source text")
     return sources[0].text
 
 
@@ -521,14 +530,15 @@ def generate_answer_stream(query: str, sources: list[RetrievedChunk]) -> Iterato
 
     context_parts = []
     for idx, source in enumerate(sources, start=1):
-        heading = f" ({source.clause_heading})" if source.clause_heading else ""
         page_display = (
             str(source.page_start)
             if source.page_start == source.page_end
             else f"{source.page_start}-{source.page_end}"
         )
+        # Include heading prominently if available
+        heading_line = f"Section: {source.clause_heading}\n" if source.clause_heading else ""
         context_parts.append(
-            f"[{idx}] Document: {source.document_name}{heading}, Page: {page_display}\n{source.text}"
+            f"[{idx}] {source.document_name} (Page {page_display})\n{heading_line}{source.text}"
         )
     context = "\n\n".join(context_parts)
 
@@ -547,18 +557,24 @@ def generate_answer_stream(query: str, sources: list[RetrievedChunk]) -> Iterato
     if _gemini_client():
         model = genai.GenerativeModel(settings.gemini_model)
         try:
+            logger.info(f"Calling Gemini model (stream): {settings.gemini_model}")
             response = model.generate_content(prompt, stream=True)
             emitted = False
             for chunk in response:
                 text = getattr(chunk, "text", None)
                 if text:
                     emitted = True
+                    logger.debug(f"Gemini chunk: {len(text)} chars")
                     yield text
             if emitted:
+                logger.info("Gemini streaming completed successfully")
                 return
-        except Exception:
-            pass
+            else:
+                logger.warning("Gemini streamed but produced no text chunks")
+        except Exception as e:
+            logger.error(f"Gemini streaming error: {type(e).__name__}: {str(e)}")
 
+    logger.info("Falling back to chunked source text")
     fallback = generate_answer(query, sources)
     yield from _chunk_text_for_stream(fallback)
 
