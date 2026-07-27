@@ -40,14 +40,23 @@ export async function uploadDocument(
 }
 
 /**
- * Lists all documents accessible to the given user.
- * GET /api/documents
+ * Lists all documents accessible to the given user, with optional scope filters.
+ * GET /api/documents?level=...&subject=...
  */
-export async function getDocuments(userId?: string): Promise<Document[]> {
+export async function getDocuments(
+  userId?: string,
+  scope?: { level?: string; subject?: string }
+): Promise<Document[]> {
+  const params = new URLSearchParams();
+  if (scope?.level) params.set("level", scope.level);
+  if (scope?.subject) params.set("subject", scope.subject);
+
   const headers: HeadersInit = {};
   if (userId) headers["x-user-id"] = userId;
 
-  const res = await fetch(`${API_BASE}/api/documents`, { headers });
+  const qs = params.toString();
+  const url = `${API_BASE}/api/documents${qs ? `?${qs}` : ""}`;
+  const res = await fetch(url, { headers });
   if (!res.ok) return [];
 
   const data: unknown[] = await res.json();

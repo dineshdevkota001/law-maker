@@ -118,7 +118,19 @@ interface ChatInterfaceProps {
   onSend: (message: string, scopeToDoc: boolean) => void;
   selectedDocName?: string | null;
   onSelectSource?: (docId: string, page: number) => void;
+  /** Current level scope for chat queries */
+  chatLevel?: string;
+  /** Current subject scope for chat queries */
+  chatSubject?: string;
+  onChatLevelChange?: (level: string) => void;
+  onChatSubjectChange?: (subject: string) => void;
 }
+
+const LEVEL_OPTIONS = [
+  { value: "global", label: "Global" },
+  { value: "per_subject", label: "Per Subject" },
+  { value: "personal", label: "Personal" },
+];
 
 export default function ChatInterface({
   messages,
@@ -126,9 +138,14 @@ export default function ChatInterface({
   onSend,
   selectedDocName,
   onSelectSource,
+  chatLevel = "global",
+  chatSubject = "",
+  onChatLevelChange,
+  onChatSubjectChange,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [scopeToSelected, setScopeToSelected] = useState(false);
+  const [showScopeConfig, setShowScopeConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -162,24 +179,68 @@ export default function ChatInterface({
           </Text>
         </div>
 
-        {selectedDocName && (
+        <div className="flex items-center gap-2">
+          {/* Scope config toggle */}
           <button
-            onClick={() => setScopeToSelected(!scopeToSelected)}
+            onClick={() => setShowScopeConfig(!showScopeConfig)}
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all border ${
-              scopeToSelected
-                ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+              showScopeConfig
+                ? "border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
                 : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
             }`}
           >
             <FilterOutlined />
-            <span>
-              {scopeToSelected
-                ? `Filter: ${selectedDocName}`
-                : "Search: All Documents"}
-            </span>
+            <span>Scope</span>
           </button>
-        )}
+
+          {selectedDocName && (
+            <button
+              onClick={() => setScopeToSelected(!scopeToSelected)}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all border ${
+                scopeToSelected
+                  ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+              }`}
+            >
+              <span>
+                {scopeToSelected
+                  ? `Doc: ${selectedDocName}`
+                  : "Search: All Docs"}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Scope configuration panel */}
+      {showScopeConfig && (
+        <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50/50 px-6 py-2 dark:border-zinc-800 dark:bg-zinc-800/30">
+          <Text type="secondary" className="text-xs shrink-0">
+            Level:
+          </Text>
+          <select
+            value={chatLevel}
+            onChange={(e) => onChatLevelChange?.(e.target.value)}
+            className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          >
+            {LEVEL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <Text type="secondary" className="text-xs shrink-0">
+            Subject:
+          </Text>
+          <input
+            type="text"
+            value={chatSubject}
+            onChange={(e) => onChatSubjectChange?.(e.target.value)}
+            placeholder="Subject (optional)"
+            className="flex-1 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs placeholder-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          />
+        </div>
+      )}
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-6 py-6">

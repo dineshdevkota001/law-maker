@@ -15,15 +15,27 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Scope state for upload
+  const [uploadLevel, setUploadLevel] = useState("global");
+  const [uploadSubject, setUploadSubject] = useState("");
+
+  // Scope state for chat queries
+  const [chatLevel, setChatLevel] = useState("global");
+  const [chatSubject, setChatSubject] = useState("");
+
   const selectedDoc = documents.find((d) => d.id === selectedDocId) || null;
 
   // -------------------------------------------------------------------------
   // Fetch existing documents from backend on first mount
   // -------------------------------------------------------------------------
   useEffect(() => {
-    getDocuments().then((docs) => {
-      setDocuments(docs);
-    });
+    getDocuments()
+      .then((docs) => {
+        setDocuments(docs);
+      })
+      .catch((err) => {
+        console.error("getDocuments failed:", err);
+      });
   }, []);
 
   // Reset active page when user changes selected document manually from sidebar
@@ -34,14 +46,17 @@ export default function Home() {
   // -------------------------------------------------------------------------
   // Upload — calls POST /api/upload_pdf for each file
   // -------------------------------------------------------------------------
+  const uid = () =>
+    typeof crypto?.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
   const handleUpload = useCallback(async (files: File[]) => {
-console.log(JSON.stringify(files),'=+=+===+=+=+=+=++===')
     if (files.length === 0) return;
     setIsUploading(true);
 
-    // Add optimistic local documents with blob URLs so UI lists & previews them immediately
     const localDocs: Document[] = files.map((file) => ({
-      id: `doc-${crypto.randomUUID()}`,
+      id: `doc-${uid()}`,
       name: file.name,
       size: file.size,
       uploadedAt: new Date(),
@@ -55,44 +70,49 @@ console.log(JSON.stringify(files),'=+=+===+=+=+=+=++===')
     setDocuments((prev) => [...prev, ...localDocs]);
     setSelectedDocId(localDocs[0].id);
 
-    // Upload each file and update with server metadata if backend is available
-    const results = await Promise.allSettled(
-      files.map((file, i) =>
-        uploadDocument(file).then((doc) => ({
-          doc: {
-            ...doc,
-            url: doc.url || localDocs[i].url,
-          },
-          localId: localDocs[i].id,
-        }))
-      )
-    );
+    try {
+      const results = await Promise.allSettled(
+        files.map((file, i) =>
+          uploadDocument(file, {
+            level: uploadLevel as "global" | "per_subject" | "personal",
+            subject: uploadSubject || undefined,
+          }).then((doc) => ({
+            doc: {
+              ...doc,
+              url: doc.url || localDocs[i].url,
+            },
+            localId: localDocs[i].id,
+          }))
+        )
+      );
 
-    setDocuments((prev) => {
-      let next = [...prev];
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const localId = localDocs[i].id;
-        if (result.status === "fulfilled") {
-          const { doc } = result.value;
-          next = next.map((d) => (d.id === localId ? doc : d));
-        } else {
-          // If backend fails or is offline, keep the local PDF active & ready
-          next = next.map((d) =>
-            d.id === localId ? { ...d, status: "ready" as const } : d
-          );
+      setDocuments((prev) => {
+        let next = [...prev];
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const localId = localDocs[i].id;
+          if (result.status === "fulfilled") {
+            const { doc } = result.value;
+            next = next.map((d) => (d.id === localId ? doc : d));
+          } else {
+            next = next.map((d) =>
+              d.id === localId ? { ...d, status: "ready" as const } : d
+            );
+          }
         }
+        return next;
+      });
+
+      const firstResult = results[0];
+      if (firstResult?.status === "fulfilled") {
+        setSelectedDocId(firstResult.value.doc.id);
       }
-      return next;
-    });
-
-    const firstResult = results[0];
-    if (firstResult?.status === "fulfilled") {
-      setSelectedDocId(firstResult.value.doc.id);
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setIsUploading(false);
     }
-
-    setIsUploading(false);
-  }, []);
+  }, [uploadLevel, uploadSubject]);
 
   // -------------------------------------------------------------------------
   // Delete — calls DELETE /api/documents/{id}
@@ -127,6 +147,8 @@ console.log(JSON.stringify(files),'=+=+===+=+=+=+=++===')
       try {
         const { answer, sources } = await sendMessage(content, {
           documentId: scopeToSelected && selectedDocId ? selectedDocId : undefined,
+          level: chatLevel,
+          subject: chatSubject || undefined,
         });
 
         const assistantMsg: ChatMessage = {
@@ -155,7 +177,7 @@ console.log(JSON.stringify(files),'=+=+===+=+=+=+=++===')
         setIsLoading(false);
       }
     },
-    [selectedDocId]
+    [selectedDocId, chatLevel, chatSubject]
   );
 
   // -------------------------------------------------------------------------
@@ -186,6 +208,10 @@ console.log(JSON.stringify(files),'=+=+===+=+=+=+=++===')
         onUpload={handleUpload}
         onRemoveDoc={handleRemoveDoc}
         isUploading={isUploading}
+        uploadLevel={uploadLevel}
+        uploadSubject={uploadSubject}
+        onUploadLevelChange={setUploadLevel}
+        onUploadSubjectChange={setUploadSubject}
       />
       <main className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
@@ -195,6 +221,10 @@ console.log(JSON.stringify(files),'=+=+===+=+=+=+=++===')
             onSend={handleSend}
             selectedDocName={selectedDoc?.name}
             onSelectSource={handleSelectSource}
+            chatLevel={chatLevel}
+            chatSubject={chatSubject}
+            onChatLevelChange={setChatLevel}
+            onChatSubjectChange={setChatSubject}
           />
         </div>
         <div className="w-[45%] flex-shrink-0">

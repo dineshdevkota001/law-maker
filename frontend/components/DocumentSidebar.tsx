@@ -25,6 +25,10 @@ interface DocumentSidebarProps {
   onUpload: (files: File[]) => void;
   onRemoveDoc: (id: string) => void;
   isUploading: boolean;
+  uploadLevel?: string;
+  uploadSubject?: string;
+  onUploadLevelChange?: (level: string) => void;
+  onUploadSubjectChange?: (subject: string) => void;
 }
 
 export default function DocumentSidebar({
@@ -34,6 +38,10 @@ export default function DocumentSidebar({
   onUpload,
   onRemoveDoc,
   isUploading,
+  uploadLevel = "global",
+  uploadSubject = "",
+  onUploadLevelChange,
+  onUploadSubjectChange,
 }: DocumentSidebarProps) {
 
   return (
@@ -146,7 +154,14 @@ export default function DocumentSidebar({
       </div>
 
       <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-        <PDFUpload onUpload={onUpload} isUploading={isUploading} />
+        <PDFUpload
+          onUpload={onUpload}
+          isUploading={isUploading}
+          level={uploadLevel}
+          subject={uploadSubject}
+          onLevelChange={onUploadLevelChange ?? (() => {})}
+          onSubjectChange={onUploadSubjectChange ?? (() => {})}
+        />
       </div>
     </aside>
   );

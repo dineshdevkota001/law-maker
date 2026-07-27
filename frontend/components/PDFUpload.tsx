@@ -11,7 +11,19 @@ const UPLOAD_INPUT_ID = "pdf-upload-input";
 interface PDFUploadProps {
   onUpload: (files: File[]) => void;
   isUploading: boolean;
+  /** Current scope level selected for upload */
+  level: string;
+  /** Current scope subject selected for upload */
+  subject: string;
+  onLevelChange: (level: string) => void;
+  onSubjectChange: (subject: string) => void;
 }
+
+const LEVEL_OPTIONS = [
+  { value: "global", label: "Global" },
+  { value: "per_subject", label: "Per Subject" },
+  { value: "personal", label: "Personal" },
+];
 
 function isPDF(file: File): boolean {
   return (
@@ -20,7 +32,14 @@ function isPDF(file: File): boolean {
   );
 }
 
-export default function PDFUpload({ onUpload, isUploading }: PDFUploadProps) {
+export default function PDFUpload({
+  onUpload,
+  isUploading,
+  level,
+  subject,
+  onLevelChange,
+  onSubjectChange,
+}: PDFUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -78,6 +97,28 @@ export default function PDFUpload({ onUpload, isUploading }: PDFUploadProps) {
 
   return (
     <>
+      {/* Scope selector — level + subject for upload categorization */}
+      <div className="mb-2 flex flex-col gap-1.5">
+        <select
+          value={level}
+          onChange={(e) => onLevelChange(e.target.value)}
+          className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+        >
+          {LEVEL_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          value={subject}
+          onChange={(e) => onSubjectChange(e.target.value)}
+          placeholder="Subject (optional)"
+          className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs placeholder-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+        />
+      </div>
+
       {/* Native file input — linked to the label below via id */}
       <input
         id={UPLOAD_INPUT_ID}
