@@ -10,6 +10,7 @@ import {
   CopyOutlined,
   CheckOutlined,
   DeleteOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import { Modal, Tag, Typography } from "antd";
 import ReactMarkdown from "react-markdown";
@@ -317,7 +318,9 @@ export default function ChatInterface({
         okButtonProps={{ danger: true }}
         cancelText="Cancel"
       >
-        <p>This will permanently delete this browser's conversation history.</p>
+        <p>
+          This will permanently delete this browser&apos;s conversation history.
+        </p>
       </Modal>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -371,15 +374,19 @@ export default function ChatInterface({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask a question about your documents..."
-            rows={2}
-            className="flex-1 resize-none rounded-2xl border border-zinc-300 bg-white px-5 py-4 text-base outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-600"
+            rows={1}
+            style={{
+              fieldSizing: "content",
+            }}
+            className="flex-1 max-h-24 rounded-2xl border border-zinc-300 bg-white px-5 py-3 text-base outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-600"
           />
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
-            className="rounded-2xl bg-blue-600 px-6 py-4 text-base font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Send message"
           >
-            Send
+            <SendOutlined />
           </button>
         </div>
       </div>
