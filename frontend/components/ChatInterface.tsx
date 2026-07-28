@@ -293,22 +293,7 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
-        <div className="mx-auto flex w-full max-w-4xl justify-end">
-          <button
-            type="button"
-            onClick={openClearConfirmation}
-            disabled={isLoading || messages.length === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-            title="Clear this browser chat history"
-          >
-            <DeleteOutlined />
-            Clear chat
-          </button>
-        </div>
-      </div>
-
+    <div className="relative flex h-full flex-col">
       <Modal
         title="Clear chat history"
         open={isClearConfirmOpen}
@@ -390,6 +375,17 @@ export default function ChatInterface({
           </button>
         </div>
       </div>
+
+      {/* Clear Chat FAB */}
+      <button
+        type="button"
+        onClick={openClearConfirmation}
+        disabled={isLoading || messages.length === 0}
+        className="absolute bottom-6 left-6 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+        title="Clear this browser chat history"
+      >
+        <DeleteOutlined className="text-lg" />
+      </button>
     </div>
   );
 }
