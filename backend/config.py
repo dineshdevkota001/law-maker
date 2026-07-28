@@ -14,6 +14,9 @@ class Settings(BaseModel):
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/law_maker"
     )
+    supabase_url: str | None = Field(default=None)
+    supabase_key: str | None = Field(default=None)  # Secret key for server-side operations
+    supabase_bucket: str = Field(default="documents")
     embedding_model_name: str = Field(default="BAAI/bge-m3")
     embedding_dimension: int = Field(default=1024)
     gemini_api_key: str | None = Field(default=None)
@@ -32,6 +35,9 @@ def get_settings() -> Settings:
             "DATABASE_URL",
             "postgresql+psycopg://postgres:postgres@localhost:5432/law_maker",
         ),
+        supabase_url=os.getenv("SUPABASE_URL"),
+        supabase_key=os.getenv("SUPABASE_SECRET_KEY"),  # Use secret key for server-side
+        supabase_bucket=os.getenv("SUPABASE_BUCKET", "documents"),
         embedding_model_name=os.getenv("EMBEDDING_MODEL_NAME", "BAAI/bge-m3"),
         embedding_dimension=int(os.getenv("EMBEDDING_DIMENSION", "1024")),
         gemini_api_key=os.getenv("GEMINI_API_KEY"),

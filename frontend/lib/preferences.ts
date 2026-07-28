@@ -4,6 +4,7 @@ export const PREF_KEYS = {
   theme: "law-maker-theme",
   userId: "law-maker-user-id",
   defaultTopic: "law-maker-default-topic",
+  backendUrl: "law-maker-backend-url",
 } as const;
 
 export function getStoredPreference(key: string, fallback: string): string {

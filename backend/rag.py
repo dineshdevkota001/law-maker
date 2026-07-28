@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from config import get_settings
 from models import Chunk, Document
+from storage import save_pdf_file
 
 
 settings = get_settings()
@@ -179,19 +180,6 @@ def _extract_pdf_pages(file_bytes: bytes) -> list[tuple[int, str]]:
     return pages
 
 
-def _storage_root() -> Path:
-    base_dir = Path(__file__).resolve().parent
-    path = Path(settings.pdf_storage_dir)
-    if not path.is_absolute():
-        path = base_dir / path
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def _safe_filename(filename: str) -> str:
-    name = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename).strip("._")
-    return name or "document.pdf"
-
 
 def _save_pdf_source(document_id: str, filename: str, content: bytes) -> str:
     storage_dir = _storage_root()
@@ -243,7 +231,7 @@ def ingest_pdf_document(
     db.refresh(doc)
 
     try:
-        doc.source_path = _save_pdf_source(doc.id, filename, content)
+        doc.source_path = save_pdf_file(doc.id, filename, content)
         pages = _extract_pdf_pages(content)
         all_text = "\n".join(text for _, text in pages).strip()
         if not all_text:

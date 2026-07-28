@@ -14,7 +14,9 @@ from config import get_settings
 from database import get_db
 from models import Document
 from rag import generate_answer, generate_answer_stream, ingest_pdf_document, search_chunks
+from storage import get_pdf_file, delete_pdf_file, file_exists
 import google.generativeai as genai
+import io
 
 
 router = APIRouter(prefix="/api")
@@ -220,18 +222,30 @@ async def stream_document_file(
             status_code=404,
             detail={"error": "SOURCE_NOT_FOUND", "detail": "Source file path missing."},
         )
-    file_path = Path(doc.source_path)
-    if not file_path.exists():
+    
+    try:
+        if not file_exists(doc.source_path):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "SOURCE_NOT_FOUND", "detail": "Source file does not exist."},
+            )
+        
+        content = get_pdf_file(doc.source_path)
+        return StreamingResponse(
+            iter([content]),
+            media_type=doc.mime_type or "application/pdf",
+            headers={"Content-Disposition": f"inline; filename=\"{doc.name}\""}
+        )
+    except FileNotFoundError:
         raise HTTPException(
             status_code=404,
             detail={"error": "SOURCE_NOT_FOUND", "detail": "Source file does not exist."},
         )
-    return FileResponse(
-        path=str(file_path),
-        filename=doc.name,
-        media_type=doc.mime_type,
-        content_disposition_type="inline",
-    )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "FILE_RETRIEVAL_FAILED", "detail": str(exc)},
+        ) from exc
 
 
 @router.delete("/documents/{document_id}")
@@ -253,6 +267,14 @@ async def delete_document(
             status_code=403,
             detail={"error": "FORBIDDEN", "detail": "Cannot delete another user's personal document."},
         )
+
+    # Delete associated file from storage
+    if doc.source_path:
+        try:
+            delete_pdf_file(doc.source_path)
+        except Exception as exc:
+            # Log error but don't fail the delete operation
+            print(f"Warning: Failed to delete file {doc.source_path}: {exc}")
 
     db.delete(doc)
     db.commit()

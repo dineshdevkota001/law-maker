@@ -1,6 +1,17 @@
 import type { ChatResponse, Document, SourceChunk } from "./types";
+import { getStoredPreference, PREF_KEYS } from "./preferences";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function getApiBase(): string {
+  // Try to get from localStorage first (user preference)
+  if (typeof window !== "undefined") {
+    const stored = getStoredPreference(PREF_KEYS.backendUrl, "");
+    if (stored) {
+      return stored;
+    }
+  }
+  // Fall back to environment variable or default
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+}
 
 export function resolveApiUrl(pathOrUrl: string): string {
   if (/^https?:\/\//i.test(pathOrUrl)) {
@@ -8,7 +19,7 @@ export function resolveApiUrl(pathOrUrl: string): string {
   }
 
   const normalized = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
-  return `${API_BASE}${normalized}`;
+  return `${getApiBase()}${normalized}`;
 }
 
 export function buildPdfPageUrl(sourceUrl: string, page: number): string {
@@ -50,7 +61,7 @@ function mergeSources(candidate: unknown): SourceChunk[] | null {
 function applyStreamPayload(
   payload: string,
   state: { answer: string; sources: SourceChunk[] },
-  handlers: ChatStreamHandlers
+  handlers: ChatStreamHandlers,
 ): void {
   const trimmed = payload.trim();
   if (!trimmed || trimmed === "[DONE]") {
@@ -68,8 +79,8 @@ function applyStreamPayload(
     typeof data.delta === "string"
       ? data.delta
       : typeof data.answerDelta === "string"
-      ? data.answerDelta
-      : null;
+        ? data.answerDelta
+        : null;
 
   if (deltaCandidate) {
     state.answer += deltaCandidate;
@@ -97,7 +108,7 @@ function applyStreamPayload(
 
 export async function uploadDocument(
   file: File,
-  options: UploadOptions = {}
+  options: UploadOptions = {},
 ): Promise<Document> {
   const formData = new FormData();
   formData.append("file", file);
@@ -113,7 +124,7 @@ export async function uploadDocument(
     headers["x-user-id"] = options.userId;
   }
 
-  const res = await fetch(`${API_BASE}/api/upload_pdf`, {
+  const res = await fetch(`${getApiBase()}/api/upload_pdf`, {
     method: "POST",
     body: formData,
     headers,
@@ -139,10 +150,10 @@ export async function uploadDocument(
 
 export async function sendMessageStream(
   query: string,
-  handlers: ChatStreamHandlers
+  handlers: ChatStreamHandlers,
 ): Promise<ChatResponse> {
   const res = await fetch(
-    `${API_BASE}/api/chat?query=${encodeURIComponent(query)}`
+    `${getApiBase()}/api/chat?query=${encodeURIComponent(query)}`,
   );
 
   if (!res.ok) {
@@ -199,7 +210,7 @@ export async function sendMessageStream(
 }
 
 export async function getDocuments(): Promise<Document[]> {
-  const res = await fetch(`${API_BASE}/api/documents`);
+  const res = await fetch(`${getApiBase()}/api/documents`);
 
   if (!res.ok) {
     return [];
@@ -210,14 +221,14 @@ export async function getDocuments(): Promise<Document[]> {
 
 export async function deleteDocument(
   documentId: string,
-  userId?: string
+  userId?: string,
 ): Promise<void> {
   const headers: HeadersInit = {};
   if (userId) {
     headers["x-user-id"] = userId;
   }
 
-  const res = await fetch(`${API_BASE}/api/documents/${documentId}`, {
+  const res = await fetch(`${getApiBase()}/api/documents/${documentId}`, {
     method: "DELETE",
     headers,
   });
