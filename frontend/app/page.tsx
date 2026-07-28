@@ -5,7 +5,7 @@ import type { Document, ChatMessage, SourceChunk } from "@/lib/types";
 import { sendMessageStream, getDocuments } from "@/lib/api";
 import { Drawer } from "antd";
 import ChatInterface from "@/components/ChatInterface";
-import PDFViewer from "@/components/PDFViewer";
+import PDFViewerAdvanced from "@/components/PDFViewerAdvanced";
 import AppTopbar from "@/components/AppTopbar";
 import { PREF_KEYS, getStoredPreference } from "@/lib/preferences";
 
@@ -15,7 +15,7 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [requestedPage, setRequestedPage] = useState<number | undefined>(
-    undefined
+    undefined,
   );
   const [requestedPageNonce, setRequestedPageNonce] = useState(0);
   const [isSourceViewerOpen, setIsSourceViewerOpen] = useState(false);
@@ -31,7 +31,7 @@ export default function Home() {
   const selectedDoc = documents.find((d) => d.id === selectedDocId) || null;
   const globalCount = documents.filter((d) => d.level === "global").length;
   const perSubjectCount = documents.filter(
-    (d) => d.level === "per_subject"
+    (d) => d.level === "per_subject",
   ).length;
   const personalCount = documents.filter((d) => d.level === "personal").length;
 
@@ -88,8 +88,8 @@ export default function Home() {
             prev.map((msg) =>
               msg.id === assistantMessageId
                 ? { ...msg, content: msg.content + delta }
-                : msg
-            )
+                : msg,
+            ),
           );
         },
       });
@@ -103,8 +103,8 @@ export default function Home() {
                 sources,
                 isStreaming: false,
               }
-            : msg
-        )
+            : msg,
+        ),
       );
     } catch {
       setMessages((prev) =>
@@ -115,8 +115,8 @@ export default function Home() {
                 content: "Sorry, something went wrong. Please try again.",
                 isStreaming: false,
               }
-            : msg
-        )
+            : msg,
+        ),
       );
     } finally {
       setIsLoading(false);
@@ -134,7 +134,7 @@ export default function Home() {
         setIsSourceViewerOpen(true);
       }
     },
-    [isMobile]
+    [isMobile],
   );
 
   useEffect(() => {
@@ -218,7 +218,7 @@ export default function Home() {
                 className="h-full min-w-[380px] overflow-hidden"
                 style={{ width: `${viewerWidth}%` }}
               >
-                <PDFViewer
+                <PDFViewerAdvanced
                   key={`${selectedDocId || "none"}-${requestedPageNonce}`}
                   document={selectedDoc}
                   requestedPage={requestedPage}
@@ -240,7 +240,7 @@ export default function Home() {
         styles={{ body: { padding: 0 } }}
       >
         <div className="h-full min-h-[60vh]">
-          <PDFViewer
+          <PDFViewerAdvanced
             key={`${selectedDocId || "none"}-${requestedPageNonce}-mobile`}
             document={selectedDoc}
             requestedPage={requestedPage}

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.orm import Session
@@ -231,10 +231,19 @@ async def stream_document_file(
             )
         
         content = get_pdf_file(doc.source_path)
-        return StreamingResponse(
-            iter([content]),
-            media_type=doc.mime_type or "application/pdf",
-            headers={"Content-Disposition": f"inline; filename=\"{doc.name}\""}
+        
+        # Safely encode filename for Content-Disposition header
+        filename = doc.name.encode("utf-8").decode("ascii", errors="ignore") or "document.pdf"
+        if not filename or not filename.strip():
+            filename = "document.pdf"
+        
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"inline; filename=\"{filename}\"",
+                "Cache-Control": "public, max-age=86400",
+            }
         )
     except FileNotFoundError:
         raise HTTPException(
