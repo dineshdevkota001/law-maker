@@ -6,6 +6,28 @@ import type {
 } from "./types";
 import { getStoredPreference, PREF_KEYS } from "./preferences";
 
+// Simple response cache with TTL (5 minutes)
+const CACHE_TTL = 5 * 60 * 1000;
+const responseCache = new Map<string, { data: unknown; timestamp: number }>();
+
+function getCachedResponse(key: string): unknown | null {
+  const cached = responseCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
+    responseCache.delete(key);
+    return null;
+  }
+  return cached.data;
+}
+
+function setCachedResponse(key: string, data: unknown): void {
+  responseCache.set(key, { data, timestamp: Date.now() });
+}
+
+export function clearApiCache(): void {
+  responseCache.clear();
+}
+
 function getApiBase(): string {
   // Try to get from localStorage first (user preference)
   if (typeof window !== "undefined") {
@@ -223,18 +245,36 @@ export async function sendMessageStream(
 }
 
 export async function getDocuments(): Promise<Document[]> {
+  const cacheKey = "documents_list";
+
+  // Try cache first
+  const cached = getCachedResponse(cacheKey);
+  if (cached) {
+    return cached as Document[];
+  }
+
   const res = await fetch(`${getApiBase()}/api/documents`);
 
   if (!res.ok) {
     return [];
   }
 
-  return res.json();
+  const data = await res.json();
+  setCachedResponse(cacheKey, data);
+  return data;
 }
 
 export async function getChatHistory(
   sessionId: string,
 ): Promise<ChatHistoryMessage[]> {
+  const cacheKey = `chat_history_${sessionId}`;
+
+  // Try cache first
+  const cached = getCachedResponse(cacheKey);
+  if (cached) {
+    return cached as ChatHistoryMessage[];
+  }
+
   const params = new URLSearchParams({ sessionId });
   const res = await fetch(
     `${getApiBase()}/api/chat/history?${params.toString()}`,
@@ -244,7 +284,9 @@ export async function getChatHistory(
     return [];
   }
 
-  return res.json();
+  const data = await res.json();
+  setCachedResponse(cacheKey, data);
+  return data;
 }
 
 export async function clearChatHistory(sessionId: string): Promise<void> {
@@ -259,6 +301,10 @@ export async function clearChatHistory(sessionId: string): Promise<void> {
   if (!res.ok) {
     throw new Error("Failed to clear chat history.");
   }
+
+  // Clear cache for this session
+  const cacheKey = `chat_history_${sessionId}`;
+  responseCache.delete(cacheKey);
 }
 
 export async function deleteDocument(

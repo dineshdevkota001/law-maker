@@ -67,6 +67,38 @@ export default function Home() {
       return;
     }
 
+    // Try to load from localStorage first
+    const localKey = `chat_messages_${chatSessionId}`;
+    const localMessages = localStorage.getItem(localKey);
+
+    if (localMessages) {
+      try {
+        const parsed = JSON.parse(localMessages);
+        setMessages(parsed);
+        // Still fetch from backend to sync, but don't replace if backend is empty
+        getChatHistory(chatSessionId)
+          .then((history) => {
+            if (history.length > 0) {
+              const hydrated: ChatMessage[] = history.map((message) => ({
+                id: message.id,
+                role: message.role,
+                content: message.content,
+                timestamp: new Date(message.timestamp),
+                sources: message.sources,
+                isStreaming: false,
+              }));
+              setMessages(hydrated);
+              localStorage.setItem(localKey, JSON.stringify(hydrated));
+            }
+          })
+          .catch(() => {});
+        return;
+      } catch {
+        // Fall through to backend fetch
+      }
+    }
+
+    // Load from backend if no local cache
     getChatHistory(chatSessionId)
       .then((history) => {
         const hydrated: ChatMessage[] = history.map((message) => ({
@@ -78,9 +110,19 @@ export default function Home() {
           isStreaming: false,
         }));
         setMessages(hydrated);
+        localStorage.setItem(localKey, JSON.stringify(hydrated));
       })
       .catch(() => {});
   }, [chatSessionId]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (!chatSessionId || messages.length === 0) {
+      return;
+    }
+    const localKey = `chat_messages_${chatSessionId}`;
+    localStorage.setItem(localKey, JSON.stringify(messages));
+  }, [messages, chatSessionId]);
 
   useEffect(() => {
     function onResize() {
@@ -175,6 +217,9 @@ export default function Home() {
     try {
       await clearChatHistory(chatSessionId);
       setMessages([]);
+      // Clear localStorage cache too
+      const localKey = `chat_messages_${chatSessionId}`;
+      localStorage.removeItem(localKey);
     } catch {
       // Keep current messages if clear fails.
     }
