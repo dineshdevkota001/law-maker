@@ -9,8 +9,9 @@ import {
   LoadingOutlined,
   CopyOutlined,
   CheckOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
-import { Tag, Typography } from "antd";
+import { Modal, Tag, Typography } from "antd";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -32,7 +33,7 @@ function getSourceIndexFromHref(href: string | undefined): number | null {
 
 function toInlineCitationMarkdown(
   content: string,
-  sources: SourceChunk[] | undefined
+  sources: SourceChunk[] | undefined,
 ): string {
   if (!sources || sources.length === 0) {
     return content;
@@ -49,7 +50,7 @@ function toInlineCitationMarkdown(
 
 function hasInlineCitations(
   content: string,
-  sources: SourceChunk[] | undefined
+  sources: SourceChunk[] | undefined,
 ): boolean {
   if (!sources || sources.length === 0) {
     return false;
@@ -76,11 +77,11 @@ function ChatBubble({
   const [copied, setCopied] = useState(false);
   const markdownWithCitations = toInlineCitationMarkdown(
     message.content,
-    message.sources
+    message.sources,
   );
   const showBottomSources = !hasInlineCitations(
     message.content,
-    message.sources
+    message.sources,
   );
 
   async function handleCopy() {
@@ -240,6 +241,7 @@ interface ChatInterfaceProps {
   messages: ChatMessageType[];
   isLoading: boolean;
   onSend: (message: string) => void;
+  onClear?: () => void;
   onSourceClick?: (source: SourceChunk) => void;
 }
 
@@ -247,9 +249,11 @@ export default function ChatInterface({
   messages,
   isLoading,
   onSend,
+  onClear,
   onSourceClick,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -271,8 +275,51 @@ export default function ChatInterface({
     }
   }
 
+  function openClearConfirmation() {
+    if (isLoading || messages.length === 0) {
+      return;
+    }
+    setIsClearConfirmOpen(true);
+  }
+
+  function closeClearConfirmation() {
+    setIsClearConfirmOpen(false);
+  }
+
+  function confirmClearChat() {
+    onClear?.();
+    setIsClearConfirmOpen(false);
+  }
+
   return (
     <div className="flex h-full flex-col">
+      <div className="border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
+        <div className="mx-auto flex w-full max-w-4xl justify-end">
+          <button
+            type="button"
+            onClick={openClearConfirmation}
+            disabled={isLoading || messages.length === 0}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            title="Clear this browser chat history"
+          >
+            <DeleteOutlined />
+            Clear chat
+          </button>
+        </div>
+      </div>
+
+      <Modal
+        title="Clear chat history"
+        open={isClearConfirmOpen}
+        onOk={confirmClearChat}
+        onCancel={closeClearConfirmation}
+        okText="Clear"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+      >
+        <p>This will permanently delete this browser's conversation history.</p>
+      </Modal>
+
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 && !isLoading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">

@@ -5,6 +5,7 @@ export const PREF_KEYS = {
   userId: "law-maker-user-id",
   defaultTopic: "law-maker-default-topic",
   backendUrl: "law-maker-backend-url",
+  chatSessionId: "law-maker-chat-session-id",
 } as const;
 
 export function getStoredPreference(key: string, fallback: string): string {
@@ -19,6 +20,24 @@ export function setStoredPreference(key: string, value: string): void {
     return;
   }
   window.localStorage.setItem(key, value);
+}
+
+export function getOrCreateStoredPreference(
+  key: string,
+  fallbackFactory: () => string,
+): string {
+  if (typeof window === "undefined") {
+    return fallbackFactory();
+  }
+
+  const existing = window.localStorage.getItem(key);
+  if (existing) {
+    return existing;
+  }
+
+  const nextValue = fallbackFactory();
+  window.localStorage.setItem(key, nextValue);
+  return nextValue;
 }
 
 export function applyTheme(mode: ThemeMode): void {

@@ -2,21 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
-from pathlib import Path
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse, Response
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse, Response
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.orm import Session
 
 from config import get_settings
 from database import get_db
-from models import Document
+from models import ChatMessage as ChatMessageModel, Document
 from rag import generate_answer, generate_answer_stream, ingest_pdf_document, search_chunks
 from storage import get_pdf_file, delete_pdf_file, file_exists
 import google.generativeai as genai
-import io
 
 
 router = APIRouter(prefix="/api")
@@ -62,6 +61,19 @@ class ChatResponse(BaseModel):
     sources: list[SourceChunkResponse]
 
 
+class ChatHistoryMessageResponse(BaseModel):
+    id: str
+    role: str
+    content: str
+    timestamp: datetime
+    sources: list[SourceChunkResponse] = Field(default_factory=list)
+
+
+class ChatHistoryClearResponse(BaseModel):
+    ok: bool
+    deleted: int
+
+
 def _to_document_response(doc: Document) -> DocumentResponse:
     return DocumentResponse(
         id=doc.id,
@@ -86,6 +98,92 @@ def _scope_clause(user_id: str | None):
             and_(Document.level == "personal", Document.user_id == user_id),
         )
     return or_(Document.level == "global", Document.level == "per_subject")
+
+
+def _decode_sources(sources_json: str | None) -> list[SourceChunkResponse]:
+    if not sources_json:
+        return []
+    try:
+        raw = json.loads(sources_json)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(raw, list):
+        return []
+
+    sources: list[SourceChunkResponse] = []
+    for item in raw:
+        try:
+            sources.append(SourceChunkResponse.model_validate(item))
+        except Exception:
+            continue
+    return sources
+
+
+def _chat_message_to_response(message: ChatMessageModel) -> ChatHistoryMessageResponse:
+    return ChatHistoryMessageResponse(
+        id=message.id,
+        role=message.role,
+        content=message.content,
+        timestamp=message.created_at,
+        sources=_decode_sources(message.sources_json),
+    )
+
+
+def _persist_chat_turn(
+    db: Session,
+    session_id: str,
+    query: str,
+    answer: str,
+    source_models: list[SourceChunkResponse],
+) -> None:
+    serialized_sources = json.dumps([item.model_dump() for item in source_models], ensure_ascii=False)
+    user_message = ChatMessageModel(
+        id=str(uuid4()),
+        session_id=session_id,
+        role="user",
+        content=query,
+        sources_json=None,
+    )
+    assistant_message = ChatMessageModel(
+        id=str(uuid4()),
+        session_id=session_id,
+        role="assistant",
+        content=answer,
+        sources_json=serialized_sources,
+    )
+    db.add_all([user_message, assistant_message])
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+@router.get("/chat/history", response_model=list[ChatHistoryMessageResponse])
+async def get_chat_history(
+    session_id: str = Query(..., alias="sessionId", min_length=8, max_length=120),
+    db: Session = Depends(get_db),
+):
+    stmt = (
+        select(ChatMessageModel)
+        .where(ChatMessageModel.session_id == session_id)
+        .order_by(ChatMessageModel.created_at.asc())
+    )
+    messages = db.scalars(stmt).all()
+    return [_chat_message_to_response(message) for message in messages]
+
+
+@router.delete("/chat/history", response_model=ChatHistoryClearResponse)
+async def clear_chat_history(
+    session_id: str = Query(..., alias="sessionId", min_length=8, max_length=120),
+    db: Session = Depends(get_db),
+):
+    stmt = select(ChatMessageModel).where(ChatMessageModel.session_id == session_id)
+    messages = db.scalars(stmt).all()
+    deleted_count = len(messages)
+    for message in messages:
+        db.delete(message)
+    db.commit()
+    return ChatHistoryClearResponse(ok=True, deleted=deleted_count)
 
 
 def _authorized_document(
@@ -297,6 +395,7 @@ async def delete_document(
 )
 async def chat(
     query: str = Query(..., min_length=2),
+    session_id: str | None = Query(None, alias="sessionId", min_length=8, max_length=120),
     level: str | None = Query(None),
     subject: str | None = Query(None),
     document_id: str | None = Query(None, alias="documentId"),
@@ -345,6 +444,8 @@ async def chat(
 
     if not stream:
         answer = generate_answer(query, sources)
+        if session_id:
+            _persist_chat_turn(db, session_id, query, answer, source_models)
         return ChatResponse(answer=answer, sources=source_models)
 
     def event_stream():
@@ -356,6 +457,9 @@ async def chat(
         answer = "".join(chunks).strip()
         if not answer:
             answer = generate_answer(query, sources)
+
+        if session_id:
+            _persist_chat_turn(db, session_id, query, answer, source_models)
 
         final_payload = {
             "answer": answer,

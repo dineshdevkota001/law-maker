@@ -39,3 +39,11 @@ export interface ChatResponse {
   answer: string;
   sources: SourceChunk[];
 }
+
+export interface ChatHistoryMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+  sources: SourceChunk[];
+}

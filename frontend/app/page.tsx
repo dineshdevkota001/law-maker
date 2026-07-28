@@ -2,12 +2,21 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Document, ChatMessage, SourceChunk } from "@/lib/types";
-import { sendMessageStream, getDocuments } from "@/lib/api";
+import {
+  clearChatHistory,
+  getChatHistory,
+  getDocuments,
+  sendMessageStream,
+} from "@/lib/api";
 import { Drawer } from "antd";
 import ChatInterface from "@/components/ChatInterface";
 import PDFViewerAdvanced from "@/components/PDFViewerAdvanced";
 import AppTopbar from "@/components/AppTopbar";
-import { PREF_KEYS, getStoredPreference } from "@/lib/preferences";
+import {
+  PREF_KEYS,
+  getOrCreateStoredPreference,
+  getStoredPreference,
+} from "@/lib/preferences";
 
 export default function Home() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -25,6 +34,7 @@ export default function Home() {
   const [viewerWidth, setViewerWidth] = useState(42);
   const [defaultUserId, setDefaultUserId] = useState("dinesh");
   const [defaultTopic, setDefaultTopic] = useState("general");
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const isResizingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -38,8 +48,12 @@ export default function Home() {
   useEffect(() => {
     const userId = getStoredPreference(PREF_KEYS.userId, "dinesh");
     const topic = getStoredPreference(PREF_KEYS.defaultTopic, "general");
+    const sessionId = getOrCreateStoredPreference(PREF_KEYS.chatSessionId, () =>
+      crypto.randomUUID(),
+    );
     setDefaultUserId(userId);
     setDefaultTopic(topic);
+    setChatSessionId(sessionId);
   }, []);
 
   useEffect(() => {
@@ -47,6 +61,26 @@ export default function Home() {
       .then(setDocuments)
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!chatSessionId) {
+      return;
+    }
+
+    getChatHistory(chatSessionId)
+      .then((history) => {
+        const hydrated: ChatMessage[] = history.map((message) => ({
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          timestamp: new Date(message.timestamp),
+          sources: message.sources,
+          isStreaming: false,
+        }));
+        setMessages(hydrated);
+      })
+      .catch(() => {});
+  }, [chatSessionId]);
 
   useEffect(() => {
     function onResize() {
@@ -60,68 +94,91 @@ export default function Home() {
     };
   }, []);
 
-  const handleSend = useCallback(async (content: string) => {
-    const assistantMessageId = crypto.randomUUID();
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      timestamp: new Date(),
-    };
+  const handleSend = useCallback(
+    async (content: string) => {
+      if (!chatSessionId) {
+        return;
+      }
 
-    const assistantPlaceholder: ChatMessage = {
-      id: assistantMessageId,
-      role: "assistant",
-      content: "",
-      timestamp: new Date(),
-      sources: [],
-      isStreaming: true,
-    };
+      const assistantMessageId = crypto.randomUUID();
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content,
+        timestamp: new Date(),
+      };
 
-    setMessages((prev) => [...prev, userMsg, assistantPlaceholder]);
-    setIsLoading(true);
+      const assistantPlaceholder: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        sources: [],
+        isStreaming: true,
+      };
 
-    try {
-      const { answer, sources } = await sendMessageStream(content, {
-        onDelta: (delta) => {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: msg.content + delta }
-                : msg,
-            ),
-          );
-        },
-      });
+      setMessages((prev) => [...prev, userMsg, assistantPlaceholder]);
+      setIsLoading(true);
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessageId
-            ? {
-                ...msg,
-                content: answer,
-                sources,
-                isStreaming: false,
-              }
-            : msg,
-        ),
-      );
-    } catch {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessageId
-            ? {
-                ...msg,
-                content: "Sorry, something went wrong. Please try again.",
-                isStreaming: false,
-              }
-            : msg,
-        ),
-      );
-    } finally {
-      setIsLoading(false);
+      try {
+        const { answer, sources } = await sendMessageStream(
+          content,
+          {
+            onDelta: (delta) => {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessageId
+                    ? { ...msg, content: msg.content + delta }
+                    : msg,
+                ),
+              );
+            },
+          },
+          { sessionId: chatSessionId },
+        );
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? {
+                  ...msg,
+                  content: answer,
+                  sources,
+                  isStreaming: false,
+                }
+              : msg,
+          ),
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? {
+                  ...msg,
+                  content: "Sorry, something went wrong. Please try again.",
+                  isStreaming: false,
+                }
+              : msg,
+          ),
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [chatSessionId],
+  );
+
+  const handleClearChat = useCallback(async () => {
+    if (!chatSessionId || isLoading) {
+      return;
     }
-  }, []);
+    try {
+      await clearChatHistory(chatSessionId);
+      setMessages([]);
+    } catch {
+      // Keep current messages if clear fails.
+    }
+  }, [chatSessionId, isLoading]);
 
   const handleSourceClick = useCallback(
     (source: SourceChunk) => {
@@ -201,6 +258,7 @@ export default function Home() {
               messages={messages}
               isLoading={isLoading}
               onSend={handleSend}
+              onClear={handleClearChat}
               onSourceClick={handleSourceClick}
             />
           </div>

@@ -1,4 +1,9 @@
-import type { ChatResponse, Document, SourceChunk } from "./types";
+import type {
+  ChatHistoryMessage,
+  ChatResponse,
+  Document,
+  SourceChunk,
+} from "./types";
 import { getStoredPreference, PREF_KEYS } from "./preferences";
 
 function getApiBase(): string {
@@ -31,6 +36,10 @@ export function buildPdfPageUrl(sourceUrl: string, page: number): string {
 
 type ChatStreamHandlers = {
   onDelta: (delta: string) => void;
+};
+
+type SendMessageOptions = {
+  sessionId?: string;
 };
 
 type UploadOptions = {
@@ -151,10 +160,14 @@ export async function uploadDocument(
 export async function sendMessageStream(
   query: string,
   handlers: ChatStreamHandlers,
+  options: SendMessageOptions = {},
 ): Promise<ChatResponse> {
-  const res = await fetch(
-    `${getApiBase()}/api/chat?query=${encodeURIComponent(query)}`,
-  );
+  const params = new URLSearchParams({ query });
+  if (options.sessionId) {
+    params.set("sessionId", options.sessionId);
+  }
+
+  const res = await fetch(`${getApiBase()}/api/chat?${params.toString()}`);
 
   if (!res.ok) {
     throw new Error(`Chat failed: ${res.statusText}`);
@@ -217,6 +230,35 @@ export async function getDocuments(): Promise<Document[]> {
   }
 
   return res.json();
+}
+
+export async function getChatHistory(
+  sessionId: string,
+): Promise<ChatHistoryMessage[]> {
+  const params = new URLSearchParams({ sessionId });
+  const res = await fetch(
+    `${getApiBase()}/api/chat/history?${params.toString()}`,
+  );
+
+  if (!res.ok) {
+    return [];
+  }
+
+  return res.json();
+}
+
+export async function clearChatHistory(sessionId: string): Promise<void> {
+  const params = new URLSearchParams({ sessionId });
+  const res = await fetch(
+    `${getApiBase()}/api/chat/history?${params.toString()}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to clear chat history.");
+  }
 }
 
 export async function deleteDocument(

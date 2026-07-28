@@ -158,6 +158,7 @@ GET /api/chat
 Query params:
 
 - query: string (required)
+- sessionId: string (optional, recommended for per-browser chat persistence)
 - level: global | per_subject | personal (optional)
 - subject: string (optional)
 - documentId: string (optional)
@@ -195,6 +196,59 @@ Behavior:
 - Backend detects language and generates bilingual query variants.
 - Retrieval uses hybrid ranking (vector + lexical) for better legal matching.
 - Gemini generates answer in the same language as user query.
+- If sessionId is provided, backend persists user and assistant messages in chat history.
+
+## 9) Get chat history for this browser session
+
+GET /api/chat/history?sessionId=YOUR_BROWSER_SESSION_ID
+
+Response:
+
+```json
+[
+  {
+    "id": "...",
+    "role": "user",
+    "content": "What is section 12?",
+    "timestamp": "2026-07-28T10:12:55.334021+00:00",
+    "sources": []
+  },
+  {
+    "id": "...",
+    "role": "assistant",
+    "content": "Section 12 states...",
+    "timestamp": "2026-07-28T10:12:56.004021+00:00",
+    "sources": [
+      {
+        "chunkId": "...",
+        "documentId": "...",
+        "documentName": "civil-code-nepal.pdf",
+        "page": 22,
+        "pageStart": 22,
+        "pageEnd": 22,
+        "clauseId": "p22-c3",
+        "clauseHeading": "दफा ५",
+        "text": "...",
+        "score": 0.8421,
+        "sourceUrl": "/api/documents/.../file?page=22"
+      }
+    ]
+  }
+]
+```
+
+## 10) Clear chat history for this browser session
+
+DELETE /api/chat/history?sessionId=YOUR_BROWSER_SESSION_ID
+
+Response:
+
+```json
+{
+  "ok": true,
+  "deleted": 8
+}
+```
 
 ## 8) Search only (no answer generation)
 
