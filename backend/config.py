@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -12,12 +13,19 @@ load_dotenv()
 
 def _normalize_database_url(url: str) -> str:
     if url.startswith("postgres://"):
-        return "postgresql+psycopg2://" + url[len("postgres://") :]
-    if url.startswith("postgresql+psycopg://"):
-        return "postgresql+psycopg2://" + url[len("postgresql+psycopg://") :]
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg2://" + url[len("postgresql://") :]
-    return url
+        url = "postgresql+psycopg2://" + url[len("postgres://") :]
+    elif url.startswith("postgresql+psycopg://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql+psycopg://") :]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://") :]
+
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    query = parse_qs(parsed.query)
+    # Direct db.*.supabase.co is IPv6-only; pooler.supabase.com is IPv4.
+    if "supabase" in host and "sslmode" not in query:
+        query["sslmode"] = ["require"]
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
 
 
 class Settings(BaseModel):

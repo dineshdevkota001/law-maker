@@ -31,7 +31,10 @@ cp .env.example .env
 
 Then update values as needed:
 
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/law_maker
+DATABASE_URL=postgresql+psycopg2://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require
+SUPABASE_URL=https://PROJECT_REF.supabase.co
+SUPABASE_SECRET_KEY=your_supabase_secret_key
+SUPABASE_BUCKET=documents
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-2.0-flash
 GEMINI_EMBEDDING_API_KEY=your_embedding_key_here

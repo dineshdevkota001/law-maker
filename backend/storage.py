@@ -1,8 +1,8 @@
-"""File storage module with Supabase and local fallback support."""
+"""File storage: Supabase Storage on Render, local disk only for development."""
 
 import logging
+import os
 from pathlib import Path
-import io
 
 from config import get_settings
 
@@ -58,46 +58,51 @@ def _safe_filename(filename: str) -> str:
     return name or "document.pdf"
 
 
+def _on_render() -> bool:
+    return bool(os.getenv("RENDER"))
+
+
 def save_pdf_file(document_id: str, filename: str, content: bytes) -> str:
     """
-    Save PDF file to Supabase storage with fallback to local storage.
-    
-    Returns:
-        str: File identifier (remote URL or local path)
+    Save the PDF to Supabase Storage.
+
+    Local disk is only used when Supabase is not configured (local development).
+    Render has no persistent disk, so Storage credentials are required there.
     """
     settings = get_settings()
     safe_name = _safe_filename(filename)
     file_key = f"{document_id}_{safe_name}"
-    
-    # Try Supabase first
+
     supabase = get_supabase_client()
-    if supabase and settings.supabase_bucket:
-        try:
-            logger.info(f"Uploading to Supabase: {file_key} ({len(content)} bytes)")
-            # Upload to Supabase Storage - pass raw bytes directly
-            supabase.storage.from_(settings.supabase_bucket).upload(
-                file_key,
-                content,
-                {
-                    "content-type": "application/pdf",
-                    "x-upsert": "true"  # Overwrite if exists
-                }
+    if not supabase:
+        if _on_render():
+            raise RuntimeError(
+                "Supabase Storage is required on Render. "
+                "Set SUPABASE_URL and SUPABASE_SECRET_KEY."
             )
-            # Return public URL
-            url = f"{settings.supabase_url}/storage/v1/object/public/{settings.supabase_bucket}/{file_key}"
-            logger.info(f"✓ File saved to Supabase: {file_key}")
-            return url
-        except Exception as e:
-            logger.warning(f"✗ Failed to save to Supabase: {type(e).__name__}: {e}")
-            logger.warning(f"  Falling back to local storage")
-    
-    # Fallback to local storage
-    storage_dir = _storage_root()
-    file_path = storage_dir / file_key
-    with open(file_path, "wb") as fh:
-        fh.write(content)
-    logger.info(f"✓ File saved locally: {file_path}")
-    return str(file_path)
+        storage_dir = _storage_root()
+        file_path = storage_dir / file_key
+        with open(file_path, "wb") as fh:
+            fh.write(content)
+        logger.info("File saved locally: %s", file_path)
+        return str(file_path)
+
+    logger.info("Uploading to Supabase Storage: %s (%s bytes)", file_key, len(content))
+    supabase.storage.from_(settings.supabase_bucket).upload(
+        file_key,
+        content,
+        {
+            "content-type": "application/pdf",
+            "upsert": "true",
+            "x-upsert": "true",
+        },
+    )
+    url = (
+        f"{settings.supabase_url}/storage/v1/object/public/"
+        f"{settings.supabase_bucket}/{file_key}"
+    )
+    logger.info("File saved to Supabase Storage: %s", file_key)
+    return url
 
 
 def get_pdf_file(file_identifier: str) -> bytes:

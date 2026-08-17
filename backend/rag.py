@@ -172,15 +172,6 @@ def _extract_pdf_pages(file_bytes: bytes) -> list[tuple[int, str]]:
 
 
 
-def _save_pdf_source(document_id: str, filename: str, content: bytes) -> str:
-    storage_dir = _storage_root()
-    safe_name = _safe_filename(filename)
-    file_path = storage_dir / f"{document_id}_{safe_name}"
-    with open(file_path, "wb") as fh:
-        fh.write(content)
-    return str(file_path)
-
-
 def _tokenize_for_lexical(text: str) -> list[str]:
     return re.findall(r"[\w\u0900-\u097F]+", text.lower())
 

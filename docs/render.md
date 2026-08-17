@@ -4,11 +4,7 @@ Gemini embeddings replace the local BGE-M3 model so the API can run on Render wi
 
 ## What gets created
 
-`render.yaml` defines:
-
-- PostgreSQL 16 (`law-maker-db`) with pgvector available
-- FastAPI backend (`law-maker-api`)
-- Next.js frontend (`law-maker-web`)
+`render.yaml` defines the FastAPI backend (`law-maker-api`). Postgres and PDF files live on Supabase (Session pooler + Storage). Deploy the Next.js frontend as a second web service if you are not using a Blueprint that includes it.
 
 ## 1. Create the Blueprint
 
@@ -20,10 +16,12 @@ Set these backend secrets:
 
 | Variable                   | Purpose                                         |
 | -------------------------- | ----------------------------------------------- |
+| `DATABASE_URL`             | Supabase **Session pooler** URI (IPv4)          |
 | `GEMINI_API_KEY`           | Generation / translation                        |
 | `GEMINI_EMBEDDING_API_KEY` | Embedding requests (can be a second Gemini key) |
-| `SUPABASE_URL`             | Optional; used for PDF storage                  |
-| `SUPABASE_SECRET_KEY`      | Optional; used for PDF storage                  |
+| `SUPABASE_URL`             | Project URL for Storage (`https://….supabase.co`) |
+| `SUPABASE_SECRET_KEY`      | Service role / secret key (server-side uploads) |
+| `SUPABASE_BUCKET`          | Storage bucket name (default `documents`)       |
 
 Confirm these names if you want a different embedding model:
 
@@ -71,6 +69,12 @@ Frontend:
 
 ## Notes
 
-- Render Postgres URLs start with `postgres://`. The backend rewrites them to SQLAlchemy’s `postgresql+psycopg2://`.
-- Prefer Supabase (or another object store) for PDFs. Local disk on Render is ephemeral unless you attach a disk.
+- **Postgres** needs the Session pooler. Render outbound is IPv4; Supabase’s direct host (`db.<project-ref>.supabase.co`) is IPv6-only:
+  - Dashboard: **Project Settings → Database → Connect → Session pooler**
+  - Host: `aws-0-<region>.pooler.supabase.com`
+  - Port: `5432` (session). Prefer this over transaction mode (`6543`) for SQLAlchemy + pgvector.
+  - User: `postgres.<project-ref>` (not `postgres`)
+  - Example: `postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require`
+  - The backend rewrites `postgres://` / `postgresql://` to `postgresql+psycopg2://` and adds `sslmode=require` when missing.
+- **PDF uploads** use the Storage REST API (`SUPABASE_URL`), which is HTTPS and already IPv4. Do not put the pooler host in `SUPABASE_URL`. Create a private or public bucket named `documents` (or set `SUPABASE_BUCKET`). Render disk is ephemeral, so uploads fail if Storage is not configured.
 - After changing `GEMINI_EMBEDDING_MODEL` or `EMBEDDING_DIMENSION`, re-ingest every document.
