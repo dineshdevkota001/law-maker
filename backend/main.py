@@ -23,6 +23,11 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+def health() -> dict[str, str]:
+	return {"status": "ok"}
+
+
 @app.on_event("startup")
 def on_startup() -> None:
 	init_db()

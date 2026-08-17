@@ -12,7 +12,7 @@ FastAPI backend for multilingual (Nepali/English) legal RAG with dynamic PDF ing
 - Multilingual retrieval pipeline:
   - language detection
   - query variants in Nepali and English (Gemini + fallback translator)
-  - multilingual embeddings using BAAI/bge-m3
+  - hosted Gemini embeddings (`gemini-embedding-001` by default)
 - Gemini answer synthesis with chunk citations
 
 ## Requirements
@@ -31,11 +31,12 @@ cp .env.example .env
 
 Then update values as needed:
 
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/law_maker
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/law_maker
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-2.0-flash
-EMBEDDING_MODEL_NAME=BAAI/bge-m3
-EMBEDDING_DIMENSION=1024
+GEMINI_EMBEDDING_API_KEY=your_embedding_key_here
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+EMBEDDING_DIMENSION=768
 MAX_UPLOAD_MB=25
 DEFAULT_SUBJECT=general
 DEFAULT_TOP_K=6
@@ -53,6 +54,12 @@ uvicorn main:app --reload --port 8000
 ```
 
 On startup, the app creates the vector extension (if available) and required tables.
+
+If you previously indexed documents with BGE-M3 (`vector(1024)`), change the column to `vector(768)` and re-upload PDFs.
+
+## Deploy on Render
+
+See [docs/render.md](../docs/render.md) and the repo-root `render.yaml` Blueprint.
 
 ## API summary
 

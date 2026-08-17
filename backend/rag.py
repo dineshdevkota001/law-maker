@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import logging
-from pathlib import Path
 import re
 import uuid
 from dataclasses import dataclass
@@ -13,18 +12,17 @@ import google.generativeai as genai
 from langdetect import LangDetectException, detect
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from config import get_settings
+from embeddings import embed_text, embed_texts
 from models import Chunk, Document
 from storage import save_pdf_file
 
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
-_embedder: SentenceTransformer | None = None
 _RRF_K = 60
 
 
@@ -35,13 +33,6 @@ class ClauseSegment:
     page_start: int
     page_end: int
     text: str
-
-
-def get_embedder() -> SentenceTransformer:
-    global _embedder
-    if _embedder is None:
-        _embedder = SentenceTransformer(settings.embedding_model_name)
-    return _embedder
 
 
 def _detect_lang(text: str) -> str:
@@ -240,8 +231,7 @@ def ingest_pdf_document(
         doc.language = _detect_lang(all_text)
         doc.page_count = len(pages)
 
-        embedder = get_embedder()
-        chunk_count = 0
+        pending_chunks: list[dict] = []
         chunk_index = 0
         for page_no, text in pages:
             clauses = _segment_page_into_clauses(text, page_no)
@@ -262,25 +252,43 @@ def ingest_pdf_document(
                     clause_chunks = [clause.text]
                 for chunk_text in clause_chunks:
                     chunk_index += 1
-                    vector = embedder.encode(chunk_text, normalize_embeddings=True).tolist()
-                    chunk = Chunk(
-                        id=str(uuid.uuid4()),
-                        document_id=doc.id,
-                        page=clause.page_start,
-                        page_start=clause.page_start,
-                        page_end=clause.page_end,
-                        chunk_index=chunk_index,
-                        clause_id=clause.clause_id,
-                        clause_heading=clause.clause_heading,
-                        text=chunk_text,
-                        language=doc.language,
-                        embedding=vector,
+                    pending_chunks.append(
+                        {
+                            "page": clause.page_start,
+                            "page_start": clause.page_start,
+                            "page_end": clause.page_end,
+                            "chunk_index": chunk_index,
+                            "clause_id": clause.clause_id,
+                            "clause_heading": clause.clause_heading,
+                            "text": chunk_text,
+                        }
                     )
-                    db.add(chunk)
-                    chunk_count += 1
 
+        chunk_count = len(pending_chunks)
         if chunk_count == 0:
             raise ValueError("PDF parsed but produced zero chunks")
+
+        vectors = embed_texts(
+            [item["text"] for item in pending_chunks],
+            task="document",
+            titles=[item["clause_heading"] for item in pending_chunks],
+        )
+        for item, vector in zip(pending_chunks, vectors):
+            db.add(
+                Chunk(
+                    id=str(uuid.uuid4()),
+                    document_id=doc.id,
+                    page=item["page"],
+                    page_start=item["page_start"],
+                    page_end=item["page_end"],
+                    chunk_index=item["chunk_index"],
+                    clause_id=item["clause_id"],
+                    clause_heading=item["clause_heading"],
+                    text=item["text"],
+                    language=doc.language,
+                    embedding=vector,
+                )
+            )
 
         doc.status = "ready"
         doc.chunk_count = chunk_count
@@ -350,12 +358,11 @@ def search_chunks(
     if not variants:
         return []
 
-    embedder = get_embedder()
     best_by_chunk: dict[str, RetrievedChunk] = {}
     fused_scores: dict[str, float] = {}
 
     for q in variants:
-        vec = embedder.encode(q, normalize_embeddings=True).tolist()
+        vec = embed_text(q, task="query")
         distance = Chunk.embedding.cosine_distance(vec)
         candidate_limit = max(top_k * 10, 40)
         stmt = (

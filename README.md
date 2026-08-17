@@ -2,6 +2,8 @@
 
 This application aims to be a sophisticated legal document analysis tool, utilizing Retrieval Augmented Generation (RAG) on uploaded documents (PDFs).
 
+Embeddings use Google Gemini (`gemini-embedding-001` by default) so the backend can run on CPU hosts such as Render. Deploy steps are in [docs/render.md](docs/render.md).
+
 ## ✨ Core Features
 *   **Text Chat:** Conversational Q&A based on the user's provided knowledge base.
 *   **PDF Upload & Processing:** Ability for users to upload one or more PDF legal documents.
